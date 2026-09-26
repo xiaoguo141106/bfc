@@ -5,6 +5,20 @@
 This project is in beta; version numbers are not guaranteed to follow strict
 semantic versioning.
 
+## beta 0.0.3
+
+- New --tape-size N to configure the tape size in bytes (default 30000)
+- New --bounds-check: emits bounds checks for the data pointer and aborts with
+  exit code 2 when it leaves the tape; a guard region covers +/-off neighbour
+  accesses so no read or write can leave the allocation
+- New --compile-only (-c) to produce an object file (.o) without linking
+- Security: the toolchain is no longer invoked through a shell. It is spawned
+  with an explicit argument vector (Windows _spawnvp, POSIX fork + execvp), so
+  file names and output paths cannot inject commands
+- More specific errors: "file not found" and "permission denied" are
+  distinguished, with the errno text attached
+- Fixed some known bugs
+
 ## beta 0.0.2
 
 - Supported OSes: Windows 8 / 8.1 / 10 / 11 (x64), Linux (x86-64, glibc and

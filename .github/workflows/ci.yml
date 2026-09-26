@@ -17,12 +17,12 @@ jobs:
 
       - name: Build and test (Unix)
         if: runner.os != 'Windows'
-        run: make test
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
 
       - name: Build bfc (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: g++ -std=c++17 -O2 -Wall -Wextra -static -o bfc.exe bfc.cpp
+        run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc.exe bfc.cpp
 
       - name: Test (Windows)
         if: runner.os == 'Windows'

@@ -6,7 +6,7 @@
 
 **English** | [简体中文](README.md)
 
-Version beta 0.0.2 · [Changelog](CHANGELOG_en-us.md)
+Version beta 0.0.3 · [Changelog](CHANGELOG_en-us.md)
 
 A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
 then drives g++ to assemble and link it into a standalone executable that
@@ -25,6 +25,24 @@ Or use the Makefile (Linux / macOS / MinGW):
 * Intermediate output: an .s file named after the input (hello.bf -> hello.s)
 * Final output: an executable named after the input; override with -o
 * Runs internally: g++ -O2 -static -o "output" "input.s"
+
+## Command-line options
+
+| Option | Effect |
+|--------|--------|
+| -o FILE | Output file (default: an executable, or a .o with -c) |
+| --target NAME | Target ABI: x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos (default auto = host) |
+| --cc CMD | Assembler/linker to use, e.g. --cc x86_64-linux-gnu-g++ |
+| --tape-size N | Tape size in bytes, default 30000 |
+| --bounds-check | Emit bounds checks for the data pointer; exit code 2 on escape (see below) |
+| --no-link / -S | Emit .s only |
+| --compile-only / -c | Emit a .o only, do not link |
+| --version / --targets | Print the version / list targets |
+
+--bounds-check checks the data pointer itself. Optimised instructions that use a
+fixed offset ([->+<], [->+>+<<], ...) stay memory-safe because of a guard region
+(the tape is allocated with 2 x max-offset extra bytes). Without the option no
+checks are emitted and going out of bounds is undefined behaviour.
 
 ## Code structure
 
@@ -87,7 +105,7 @@ the real loop, so semantics never change.
 | Windows 10 / 11 (x64) | yes | yes | CI verified |
 | Windows 8 / 8.1 (x64) | yes | yes | needs the UCRT (KB2999226) |
 | Windows 7 SP1 (x64) | partial | partial | needs the UCRT update, not CI verified |
-| Linux (x86-64, glibc) | yes | yes | CI verified |
+| Linux (x86-64, glibc) | yes | yes | verified locally (WSL) + CI |
 | Linux (x86-64, musl) | yes | yes | use --cc musl-g++ |
 | macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-13 runner) |
 | FreeBSD / OpenBSD (x86-64) | partial | partial | SysV ELF path, not CI verified |

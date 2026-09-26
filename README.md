@@ -6,7 +6,7 @@
 
 [English](README_en-us.md) | **简体中文**
 
-版本 beta 0.0.2 · [更新日志](CHANGELOG.md)
+版本 beta 0.0.3 · [更新日志](CHANGELOG.md)
 
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
@@ -24,6 +24,23 @@ g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 * 中间产物：输入同名 .s（hello.bf -> hello.s）
 * 最终产物：默认输入同名可执行文件，可用 -o 覆盖
 * 内部执行：g++ -O2 -static -o "output" "input.s"
+
+## 命令行选项
+
+| 选项 | 作用 |
+|------|------|
+| -o FILE | 输出文件（默认：可执行文件，或 -c 时的 .o） |
+| --target NAME | 目标 ABI：x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos（默认 auto = 本机） |
+| --cc CMD | 指定汇编 / 链接器，例如 --cc x86_64-linux-gnu-g++ |
+| --tape-size N | tape 字节数，默认 30000 |
+| --bounds-check | 为数据指针生成边界检查，越界以退出码 2 终止（见下） |
+| --no-link / -S | 只生成 .s |
+| --compile-only / -c | 只生成 .o，不链接 |
+| --version / --targets | 打印版本 / 列出目标 |
+
+--bounds-check 只检查数据指针本身；带固定偏移的优化指令（[->+<]、[->+>+<<] 等）
+因为邻近访问的 guard 区域而保持内存安全（tape 会多分配 2×最大偏移字节）。
+不加该选项时不生成任何检查，越界属于未定义行为。
 
 ## 代码结构
 
@@ -77,7 +94,7 @@ reset 型单元只在“循环体至少执行过一次”时才改变，因此�
 | Windows 10 / 11 (x64) | 支持 | 支持 | CI 验证 |
 | Windows 8 / 8.1 (x64) | 支持 | 支持 | 需安装 UCRT（KB2999226） |
 | Windows 7 SP1 (x64) | 部分 | 部分 | 需 UCRT 更新，未 CI 验证 |
-| Linux (x86-64, glibc) | 支持 | 支持 | CI 验证 |
+| Linux (x86-64, glibc) | 支持 | 支持 | 本机 (WSL) 实测 + CI |
 | Linux (x86-64, musl) | 支持 | 支持 | 使用 --cc musl-g++ |
 | macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-13 运行器） |
 | FreeBSD / OpenBSD (x86-64) | 部分 | 部分 | 走 SysV ELF 路径，未 CI 验证 |

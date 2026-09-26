@@ -4,6 +4,17 @@
 
 本项目处于 beta 阶段，版本号不保证严格遵循语义化版本。
 
+## beta 0.0.3
+
+- 新增 --tape-size N：可配置 tape 字节数（默认 30000）
+- 新增 --bounds-check：为数据指针生成边界检查，越界时以退出码 2 终止；
+  并为 ±off 邻近访问预留 guard 区域，杜绝越界读写
+- 新增 --compile-only（-c）：只生成目标文件 .o，不链接
+- 安全：不再经 shell 调用工具链，改为参数向量直接 spawn（Windows 用
+  _spawnvp，POSIX 用 fork + execvp），文件名与输出路径无法注入命令
+- 错误信息更具体：区分「文件不存在」「权限不足」，并附 errno 文本
+- 修复了一些已知的 BUG
+
 ## beta 0.0.2
 
 - 支持了：Windows 8 / 8.1 / 10 / 11 (x64)、Linux (x86-64, glibc 与 musl)、

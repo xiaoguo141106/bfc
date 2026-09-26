@@ -45,9 +45,12 @@
 //  Tape: 30000 bytes of zero-initialised storage in .bss.
 // ============================================================================
 
+#include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -56,6 +59,13 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
 
 // ---------------------------------------------------------------------------
 //  Target description -- the ABI the generated assembly is written for.
@@ -83,7 +93,7 @@ static const Target kTargets[] = {
 };
 static const int kTargetCount = static_cast<int>(sizeof(kTargets) / sizeof(kTargets[0]));
 
-static const char* const kVersion = "beta 0.0.2";
+static const char* const kVersion = "beta 0.0.3";
 
 // Target of the machine this compiler runs on.  Only x86-64 hosts are served;
 // on another architecture --target (plus a matching --cc) must be given.
@@ -154,8 +164,9 @@ struct LoopInfo {
 // ---------------------------------------------------------------------------
 class BFCompiler {
 public:
-    BFCompiler(std::string sourceName, const Target& target)
-        : sourceName_(std::move(sourceName)), target_(&target) {}
+    BFCompiler(std::string sourceName, const Target& target, int tapeSize, bool boundsCheck)
+        : sourceName_(std::move(sourceName)), target_(&target),
+          tapeSize_(tapeSize), boundsCheck_(boundsCheck) {}
 
     void parse(const std::string& path);
     void optimize();
@@ -180,9 +191,14 @@ private:
     void     optimizeRange(std::size_t lo, std::size_t hi, std::vector<Op>& out);
     LoopInfo classify(std::size_t l, std::size_t r);
     bool     analyzeBody(std::size_t lo, std::size_t hi, TransferSummary& out);
+    void     computeMaxOffset();
+    void     emitBoundsCheck(std::ostream& out, int oobLabel) const;
 
     std::string              sourceName_;
     const Target*            target_ = nullptr;
+    int                      tapeSize_ = 30000;
+    bool                     boundsCheck_ = false;
+    int                      maxOff_ = 0;
     std::vector<Op>          ops_;
     std::vector<int>         match_;      // bracket partner index
     std::vector<TransferSummary> transfers_;
@@ -217,9 +233,17 @@ static int norm256(int x) { return ((x % 256) + 256) % 256; }
 //           adjacent opposite pairs ("> <" and "+ -" vanish).
 // ===========================================================================
 void BFCompiler::parse(const std::string& path) {
+    errno = 0;
     std::ifstream in(path, std::ios::binary);
-    if (!in)
+    if (!in) {
+        const int e = errno;
+        if (e == ENOENT) throw std::runtime_error("input file not found: " + path);
+        if (e == EACCES) throw std::runtime_error("permission denied reading: " + path);
+        if (e != 0)
+            throw std::runtime_error("cannot open input file: " + path + ": " +
+                                     std::strerror(e));
         throw std::runtime_error("cannot open input file: " + path);
+    }
 
     const std::string raw((std::istreambuf_iterator<char>(in)),
                            std::istreambuf_iterator<char>());
@@ -316,6 +340,7 @@ void BFCompiler::optimize() {
     out.reserve(ops_.size());
     optimizeRange(0, ops_.size(), out);
     ops_.swap(out);
+    computeMaxOffset();
 }
 
 void BFCompiler::optimizeRange(std::size_t lo, std::size_t hi, std::vector<Op>& out) {
@@ -559,6 +584,46 @@ bool BFCompiler::analyzeBody(std::size_t lo, std::size_t hi, TransferSummary& ou
 }
 
 // ===========================================================================
+//  computeMaxOffset(): largest fixed cell offset any optimised op touches.
+//  Only used with --bounds-check, to pad the tape with guard cells so that an
+//  access such as 1(%r13) can never leave the allocation.
+// ===========================================================================
+void BFCompiler::computeMaxOffset() {
+    maxOff_ = 0;
+    if (!boundsCheck_) return;
+    for (std::size_t i = 0; i < ops_.size(); ++i) {
+        const Op& op = ops_[i];
+        if (op.kind == 'A' || op.kind == 'B' || op.kind == 'C' || op.kind == 'D') {
+            if (maxOff_ < 1) maxOff_ = 1;
+        } else if (op.kind == 'M') {
+            const TransferSummary& t = transfers_[static_cast<std::size_t>(op.value)];
+            for (std::size_t a = 0; a < t.accum.size(); ++a) {
+                const int o = t.accum[a].first < 0 ? -t.accum[a].first : t.accum[a].first;
+                if (o > maxOff_) maxOff_ = o;
+            }
+            for (std::size_t r = 0; r < t.resets.size(); ++r) {
+                const int o = t.resets[r].first < 0 ? -t.resets[r].first : t.resets[r].first;
+                if (o > maxOff_) maxOff_ = o;
+            }
+        }
+    }
+}
+
+// ===========================================================================
+//  emitBoundsCheck(): trap if the data pointer left [r12, r12 + tapeSize).
+//  %r12 holds the (guard-padded) tape base and is never modified.
+// ===========================================================================
+void BFCompiler::emitBoundsCheck(std::ostream& out, int oobLabel) const {
+    if (!boundsCheck_) return;
+    out << "    cmpq    %r12, %r13\n";
+    out << "    jb      .L" << oobLabel << "\n";
+    out << "    leaq    " << target_->symPrefix << "tape+" << (maxOff_ + tapeSize_)
+        << "(%rip), %rax\n";
+    out << "    cmpq    %rax, %r13\n";
+    out << "    jae     .L" << oobLabel << "\n";
+}
+
+// ===========================================================================
 //  generate(): AT&T syntax.
 //
 //  Stack layout (frame keeps %rsp 16-byte aligned at every call site):
@@ -592,12 +657,17 @@ void BFCompiler::generate(std::ostream& out) const {
     out << "    pushq   %r13\n";
     if (T.shadowSpace)
         out << "    subq    $32, %rsp\n";
-    out << "    leaq    " << tapeSym << "(%rip), %r12\n";
+    if (maxOff_ > 0)
+        out << "    leaq    " << tapeSym << "+" << maxOff_ << "(%rip), %r12\n";
+    else
+        out << "    leaq    " << tapeSym << "(%rip), %r12\n";
     out << "    movq    %r12, %r13\n";
     out << "\n";
 
     std::vector<int> loops;   // stack of open-loop label ids
     int nextLabel = 0;
+    const int oobId     = boundsCheck_ ? nextLabel++ : -1;   // out-of-bounds trap
+    const int allocSize = tapeSize_ + 2 * maxOff_;           // guard cells for +/-off
 
     for (std::size_t oi = 0; oi < ops_.size(); ++oi) {
         const Op& op = ops_[oi];
@@ -605,9 +675,11 @@ void BFCompiler::generate(std::ostream& out) const {
 
         case '>':
             out << "    addq    $" << op.value << ", %r13\n";
+            emitBoundsCheck(out, oobId);
             break;
         case '<':
             out << "    subq    $" << op.value << ", %r13\n";
+            emitBoundsCheck(out, oobId);
             break;
 
         case '+': {
@@ -680,6 +752,7 @@ void BFCompiler::generate(std::ostream& out) const {
             out << "    je      .L" << id << "_end\n";
             out << ".L" << id << ":\n";
             out << "    " << (fwd ? "addq    $" : "subq    $") << step << ", %r13\n";
+            emitBoundsCheck(out, oobId);
             out << "    cmpb    $0, (%r13)\n";
             out << "    jne     .L" << id << "\n";
             out << ".L" << id << "_end:\n";
@@ -731,7 +804,14 @@ void BFCompiler::generate(std::ostream& out) const {
     if (T.os == TargetOS::Elf)
         out << "    .size   " << mainSym << ", .-" << mainSym << "\n";
 
-    // ---- tape: 30000 zero bytes in .bss ----------------------------------
+    // ---- bounds-check trap: reached only when %r13 leaves the tape -------
+    if (boundsCheck_) {
+        out << "\n.L" << oobId << ":\n";
+        out << "    movl    $2, " << T.arg0 << "\n";
+        out << "    call    " << S << "exit\n";
+    }
+
+    // ---- tape: zero-filled data area in .bss -----------------------------
     if (T.os == TargetOS::MacOS)
         out << "\n    .section __DATA,__bss\n";
     else if (T.os == TargetOS::Windows)
@@ -741,11 +821,11 @@ void BFCompiler::generate(std::ostream& out) const {
     out << "    .p2align 4\n";
     if (T.os == TargetOS::Elf) {
         out << "    .type   " << tapeSym << ", @object\n";
-        out << "    .size   " << tapeSym << ", " << kTapeSize << "\n";
+        out << "    .size   " << tapeSym << ", " << allocSize << "\n";
     }
     out << "    .globl  " << tapeSym << "\n";
     out << tapeSym << ":\n";
-    out << "    .zero   " << kTapeSize << "\n";
+    out << "    .zero   " << allocSize << "\n";
 
     if (T.gnuStackNote)
         out << "\n    .section .note.GNU-stack,\"\",@progbits\n";
@@ -762,21 +842,74 @@ static std::string replaceExtension(const std::string& path, const std::string& 
     return path.substr(0, dot) + newExt;
 }
 
-static std::string quote(const std::string& s) { return "\"" + s + "\""; }
+// Split a --cc value on whitespace so that e.g. "clang -arch x86_64" works.
+static std::vector<std::string> splitWords(const std::string& s) {
+    std::vector<std::string> out;
+    std::string cur;
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const char c = s[i];
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            if (!cur.empty()) { out.push_back(cur); cur.clear(); }
+        } else {
+            cur.push_back(c);
+        }
+    }
+    if (!cur.empty()) out.push_back(cur);
+    return out;
+}
+
+static std::string joinWords(const std::vector<std::string>& v) {
+    std::string s;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (i) s += ' ';
+        s += v[i];
+    }
+    return s;
+}
+
+// Run a program with an explicit argument vector.  No shell is involved, so
+// file names cannot inject commands.
+static int runProcess(const std::vector<std::string>& args) {
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (std::size_t i = 0; i < args.size(); ++i)
+        argv.push_back(const_cast<char*>(args[i].c_str()));
+    argv.push_back(nullptr);
+
+#if defined(_WIN32)
+    const intptr_t rc = _spawnvp(_P_WAIT, argv[0], argv.data());
+    return static_cast<int>(rc);
+#else
+    const pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        execvp(argv[0], argv.data());
+        _exit(127);
+    }
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) { /* retry */ }
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    return 128;
+#endif
+}
 
 static void usage(const char* prog) {
     std::cerr
-        << "usage: " << prog << " <input.bf> [-o output]"
-        << " [--target NAME] [--cc CMD] [--no-link]\n"
+        << "usage: " << prog << " <input.bf> [-o output]\n"
+        << "       [--target NAME] [--cc CMD] [--tape-size N] [--bounds-check]\n"
+        << "       [--no-link|-S] [--compile-only|-c]\n"
         << "       " << prog << " --version | --targets\n";
 }
 
 int main(int argc, char** argv) {
     std::string input;
     std::string output;
-    std::string targetName = "auto";
-    std::string cc         = "g++";
-    bool        noLink     = false;
+    std::string targetName  = "auto";
+    std::string cc          = "g++";
+    int         tapeSize    = kTapeSize;
+    bool        noLink      = false;
+    bool        compileOnly = false;
+    bool        boundsCheck = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -789,6 +922,20 @@ int main(int argc, char** argv) {
         } else if (a == "--cc") {
             if (i + 1 >= argc) { std::cerr << "error: --cc requires an argument\n"; return 1; }
             cc = argv[++i];
+        } else if (a == "--tape-size") {
+            if (i + 1 >= argc) { std::cerr << "error: --tape-size requires an argument\n"; return 1; }
+            const std::string v = argv[++i];
+            char* endp = nullptr;
+            const long n = std::strtol(v.c_str(), &endp, 10);
+            if (endp == v.c_str() || *endp != '\0' || n <= 0 || n > (1L << 28)) {
+                std::cerr << "error: invalid --tape-size '" << v << "' (expected 1..268435456)\n";
+                return 1;
+            }
+            tapeSize = static_cast<int>(n);
+        } else if (a == "--bounds-check") {
+            boundsCheck = true;
+        } else if (a == "--compile-only" || a == "-c") {
+            compileOnly = true;
         } else if (a == "--no-link" || a == "-S") {
             noLink = true;
         } else if (a == "--version" || a == "-V") {
@@ -831,10 +978,12 @@ int main(int argc, char** argv) {
     }
 
     const std::string asmPath = replaceExtension(input, ".s");
-    if (output.empty()) output = replaceExtension(input, target->exeSuffix);
+    if (output.empty())
+        output = compileOnly ? replaceExtension(input, ".o")
+                             : replaceExtension(input, target->exeSuffix);
 
     try {
-        BFCompiler compiler(input, *target);
+        BFCompiler compiler(input, *target, tapeSize, boundsCheck);
         compiler.parse(input);
         compiler.optimize();
 
@@ -845,18 +994,39 @@ int main(int argc, char** argv) {
         if (!out) throw std::runtime_error("failed while writing assembly file: " + asmPath);
 
         std::cout << "[bfc] " << input << " -> " << asmPath
-                  << "  (" << compiler.ops().size() << " ops, target " << target->name << ")\n";
+                  << "  (" << compiler.ops().size() << " ops, target " << target->name
+                  << ", tape " << tapeSize << (boundsCheck ? ", bounds-check" : "") << ")\n";
 
         if (noLink) return 0;
 
-        std::string cmd = cc + " -O2";
-        if (target->staticLink) cmd += " -static";
-        cmd += " -o " + quote(output) + " " + quote(asmPath);
+        std::vector<std::string> args = splitWords(cc);
+        if (args.empty()) { std::cerr << "error: --cc is empty\n"; return 1; }
 
-        std::cout << "[bfc] " << cmd << "\n";
-        const int rc = std::system(cmd.c_str());
+        if (compileOnly) {
+            args.push_back("-c");
+            args.push_back("-o");
+            args.push_back(output);
+            args.push_back(asmPath);
+        } else {
+            args.push_back("-O2");
+            if (target->staticLink) args.push_back("-static");
+            args.push_back("-o");
+            args.push_back(output);
+            args.push_back(asmPath);
+        }
+
+        std::cout << "[bfc] " << joinWords(args) << "\n";
+        std::cout.flush();
+
+        errno = 0;
+        const int rc = runProcess(args);
+        if (rc < 0) {
+            std::cerr << "error: cannot run '" << args[0] << "': "
+                      << std::strerror(errno) << "\n";
+            return 1;
+        }
         if (rc != 0) {
-            std::cerr << "error: " << cc << " failed (exit code " << rc << ")\n";
+            std::cerr << "error: " << args[0] << " failed (exit code " << rc << ")\n";
             return 1;
         }
 
