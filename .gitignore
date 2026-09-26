@@ -13,6 +13,11 @@
 /tests/asm/
 /tests/bf/*.s
 
+# ---- local work area ------------------------------------------------------
+# .dsh holds private notes, daily reports, the knowledge base and planning.
+# It is a local workspace and must never be committed.
+/.dsh/
+
 # ---- editors / operating systems -----------------------------------------
 .vscode/
 .idea/
