@@ -6,7 +6,7 @@
 
 [English](README_en-us.md) | **简体中文**
 
-版本 beta 0.0.3 · [更新日志](CHANGELOG.md)
+版本 beta 0.0.3 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
 
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。

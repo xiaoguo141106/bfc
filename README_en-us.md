@@ -6,7 +6,7 @@
 
 **English** | [简体中文](README.md)
 
-Version beta 0.0.3 · [Changelog](CHANGELOG_en-us.md)
+Version beta 0.0.3 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
 
 A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
 then drives g++ to assemble and link it into a standalone executable that
