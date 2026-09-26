@@ -1,0 +1,8 @@
+# Normalize line endings: store LF in the repository, check it out as LF on
+# every platform. Keeps the diff clean for the Windows / Linux / macOS targets.
+* text=auto eol=lf
+
+# Never touch binary artifacts.
+*.exe binary
+*.dll binary
+*.png binary
