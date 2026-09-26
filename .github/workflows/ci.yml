@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: build + test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test (Unix)
+        if: runner.os != 'Windows'
+        run: make test
+
+      - name: Build bfc (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: g++ -std=c++17 -O2 -Wall -Wextra -static -o bfc.exe bfc.cpp
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/run_tests.ps1
+
+      - name: Report version and targets (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./bfc --version
+          ./bfc --targets
+
+      - name: Report version and targets (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./bfc.exe --version
+          ./bfc.exe --targets

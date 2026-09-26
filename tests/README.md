@@ -2,7 +2,9 @@
 
 ## 运行
 
-    powershell -File tests\run_tests.ps1
+    powershell -File tests\run_tests.ps1   # Windows
+    sh tests/run_tests.sh                 # Linux / macOS / BSD
+    make test                             # 两者皆可
 
 脚本会：编译 tests/bf 下每个 .bf，把生成的 .s 归入 tests/asm，
 运行可执行文件并与内置期望值逐字节比较，校验括号错误被拒绝，

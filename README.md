@@ -6,6 +6,8 @@
 
 [English](README_en-us.md) | **简体中文**
 
+版本 beta 0.0.2 · [更新日志](CHANGELOG.md)
+
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 
@@ -13,6 +15,11 @@ g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 
     g++ -std=c++17 -O2 -static -o bfc.exe bfc.cpp
     bfc.exe <input.bf> [-o output.exe]
+
+也可以直接用 Makefile（Linux / macOS / MinGW 均可）：
+
+    make
+    make test
 
 * 中间产物：输入同名 .s（hello.bf -> hello.s）
 * 最终产物：默认输入同名可执行文件，可用 -o 覆盖
@@ -62,6 +69,27 @@ reset 型单元只在“循环体至少执行过一次”时才改变，因此�
   调用点始终 16 字节对齐。
 * 平台分支在编译期选择：Windows x64（无前缀，shadow space，-static）、
   Linux/*BSD（无前缀，-static）、macOS（下划线前缀，不加 -static）。
+
+## 平台支持
+
+| 平台 | 编译 bfc | 编译 BF 产物 | 状态 |
+|------|:--------:|:------------:|------|
+| Windows 10 / 11 (x64) | 支持 | 支持 | CI 验证 |
+| Windows 8 / 8.1 (x64) | 支持 | 支持 | 需安装 UCRT（KB2999226） |
+| Windows 7 SP1 (x64) | 部分 | 部分 | 需 UCRT 更新，未 CI 验证 |
+| Linux (x86-64, glibc) | 支持 | 支持 | CI 验证 |
+| Linux (x86-64, musl) | 支持 | 支持 | 使用 --cc musl-g++ |
+| macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-13 运行器） |
+| FreeBSD / OpenBSD (x86-64) | 部分 | 部分 | 走 SysV ELF 路径，未 CI 验证 |
+| Windows XP | 不支持 | 不支持 | 没有 UCRT |
+| ARM64（Apple Silicon / 树莓派） | 不支持 | 不支持 | 需要 aarch64 后端，尚未实现 |
+| DOS / z/OS / z/VSE / RTOS | 不支持 | 不支持 | 不在支持范围内 |
+
+目标 ABI 在运行时选择，因此可以在一个系统上为另一个系统生成汇编：
+
+    bfc --target x86_64-linux --cc x86_64-linux-gnu-g++ hello.bf
+    bfc --target x86_64-windows --no-link hello.bf     # 只生成 .s
+    bfc --targets                                      # 列出全部目标
 
 ## 错误处理
 

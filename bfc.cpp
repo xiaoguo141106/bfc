@@ -58,30 +58,62 @@
 #include <vector>
 
 // ---------------------------------------------------------------------------
-//  Platform description
+//  Target description -- the ABI the generated assembly is written for.
+//  Selected at run time (--target), so a compiler built on one OS can emit
+//  assembly for another (cross compilation).
 // ---------------------------------------------------------------------------
+enum class TargetOS { Windows, Elf, MacOS };
+
+struct Target {
+    const char* name;
+    TargetOS    os;
+    bool        shadowSpace;   // MS x64: reserve 32 bytes of home space
+    const char* symPrefix;     // Mach-O symbols take a leading underscore
+    const char* arg0;          // register holding the first integer argument
+    const char* exeSuffix;
+    bool        staticLink;    // pass -static to the toolchain
+    bool        gnuStackNote;  // emit .note.GNU-stack (ELF linkers only)
+};
+
+static const Target kTargets[] = {
+    { "x86_64-windows", TargetOS::Windows, true,  "",  "%ecx", ".exe", true,  false },
+    { "x86_64-linux",   TargetOS::Elf,     false, "",  "%edi", "",     true,  true  },
+    { "x86_64-freebsd", TargetOS::Elf,     false, "",  "%edi", "",     true,  false },
+    { "x86_64-macos",   TargetOS::MacOS,   false, "_", "%edi", "",     false, false },
+};
+static const int kTargetCount = static_cast<int>(sizeof(kTargets) / sizeof(kTargets[0]));
+
+static const char* const kVersion = "beta 0.0.2";
+
+// Target of the machine this compiler runs on.  Only x86-64 hosts are served;
+// on another architecture --target (plus a matching --cc) must be given.
+static const char* hostTargetName() {
 #if defined(_WIN32)
-// ---- Windows x64 (MSVC / MinGW-w64), Microsoft x64 calling convention ------
-static const char* const kSymPrefix   = "";      // no leading underscore
-static const bool        kShadowSpace = true;    // 32-byte home space
-static const char* const kArg0        = "%ecx";  // first integer argument
-static const char* const kExeSuffix   = ".exe";
-static const bool        kStaticLink  = true;
+#  if defined(_M_ARM64) || defined(__aarch64__)
+    return nullptr;
+#  else
+    return "x86_64-windows";
+#  endif
 #elif defined(__APPLE__)
-// ---- macOS x86-64, System V AMD64 ABI, Mach-O symbol mangling -------------
-static const char* const kSymPrefix   = "_";
-static const bool        kShadowSpace = false;
-static const char* const kArg0        = "%edi";
-static const char* const kExeSuffix   = "";
-static const bool        kStaticLink  = false;   // -static unsupported on macOS
+#  if defined(__aarch64__) || defined(__arm64__)
+    return nullptr;
+#  else
+    return "x86_64-macos";
+#  endif
 #else
-// ---- Linux / *BSD / other Unix, System V AMD64 ABI ------------------------
-static const char* const kSymPrefix   = "";
-static const bool        kShadowSpace = false;
-static const char* const kArg0        = "%edi";
-static const char* const kExeSuffix   = "";
-static const bool        kStaticLink  = true;
+#  if defined(__x86_64__) || defined(__amd64__)
+    return "x86_64-linux";
+#  else
+    return nullptr;
+#  endif
 #endif
+}
+
+static const Target* findTarget(const std::string& name) {
+    for (int i = 0; i < kTargetCount; ++i)
+        if (name == kTargets[i].name) return &kTargets[i];
+    return nullptr;
+}
 
 static const int kTapeSize = 30000;
 
@@ -122,7 +154,8 @@ struct LoopInfo {
 // ---------------------------------------------------------------------------
 class BFCompiler {
 public:
-    explicit BFCompiler(std::string sourceName) : sourceName_(std::move(sourceName)) {}
+    BFCompiler(std::string sourceName, const Target& target)
+        : sourceName_(std::move(sourceName)), target_(&target) {}
 
     void parse(const std::string& path);
     void optimize();
@@ -149,6 +182,7 @@ private:
     bool     analyzeBody(std::size_t lo, std::size_t hi, TransferSummary& out);
 
     std::string              sourceName_;
+    const Target*            target_ = nullptr;
     std::vector<Op>          ops_;
     std::vector<int>         match_;      // bracket partner index
     std::vector<TransferSummary> transfers_;
@@ -539,7 +573,8 @@ bool BFCompiler::analyzeBody(std::size_t lo, std::size_t hi, TransferSummary& ou
 //     Microsoft x64 and System V AMD64 ABIs require.
 // ===========================================================================
 void BFCompiler::generate(std::ostream& out) const {
-    const std::string S(kSymPrefix);
+    const Target& T = *target_;
+    const std::string S(T.symPrefix);
     const std::string mainSym = S + "main";
     const std::string tapeSym = S + "tape";
     const std::string putSym  = S + "putchar";
@@ -548,15 +583,14 @@ void BFCompiler::generate(std::ostream& out) const {
     out << "    .file   \"" << sourceName_ << "\"\n";
     out << "    .text\n";
     out << "    .globl  " << mainSym << "\n";
-#if !defined(_WIN32) && !defined(__APPLE__)
-    out << "    .type   " << mainSym << ", @function\n";
-#endif
+    if (T.os == TargetOS::Elf)
+        out << "    .type   " << mainSym << ", @function\n";
     out << mainSym << ":\n";
     out << "    pushq   %rbp\n";
     out << "    movq    %rsp, %rbp\n";
     out << "    pushq   %r12\n";
     out << "    pushq   %r13\n";
-    if (kShadowSpace)
+    if (T.shadowSpace)
         out << "    subq    $32, %rsp\n";
     out << "    leaq    " << tapeSym << "(%rip), %r12\n";
     out << "    movq    %r12, %r13\n";
@@ -588,7 +622,7 @@ void BFCompiler::generate(std::ostream& out) const {
         }
 
         case '.':
-            out << "    movzbl  (%r13), " << kArg0 << "\n";
+            out << "    movzbl  (%r13), " << T.arg0 << "\n";
             out << "    call    " << putSym << "\n";
             break;
         case ',':
@@ -688,36 +722,33 @@ void BFCompiler::generate(std::ostream& out) const {
 
     out << "\n";
     out << "    xorl    %eax, %eax\n";             // main() returns 0
-    if (kShadowSpace)
+    if (T.shadowSpace)
         out << "    addq    $32, %rsp\n";
     out << "    popq    %r13\n";
     out << "    popq    %r12\n";
     out << "    popq    %rbp\n";
     out << "    ret\n";
-#if !defined(_WIN32) && !defined(__APPLE__)
-    out << "    .size   " << mainSym << ", .-" << mainSym << "\n";
-#endif
+    if (T.os == TargetOS::Elf)
+        out << "    .size   " << mainSym << ", .-" << mainSym << "\n";
 
     // ---- tape: 30000 zero bytes in .bss ----------------------------------
-#if defined(__APPLE__)
-    out << "\n    .section __DATA,__bss\n";
-#elif defined(_WIN32)
-    out << "\n    .section .bss\n";
-#else
-    out << "\n    .bss\n";
-#endif
-    out << "    .align  16\n";
-#if !defined(_WIN32) && !defined(__APPLE__)
-    out << "    .type   " << tapeSym << ", @object\n";
-    out << "    .size   " << tapeSym << ", " << kTapeSize << "\n";
-#endif
+    if (T.os == TargetOS::MacOS)
+        out << "\n    .section __DATA,__bss\n";
+    else if (T.os == TargetOS::Windows)
+        out << "\n    .section .bss\n";
+    else
+        out << "\n    .bss\n";
+    out << "    .p2align 4\n";
+    if (T.os == TargetOS::Elf) {
+        out << "    .type   " << tapeSym << ", @object\n";
+        out << "    .size   " << tapeSym << ", " << kTapeSize << "\n";
+    }
     out << "    .globl  " << tapeSym << "\n";
     out << tapeSym << ":\n";
     out << "    .zero   " << kTapeSize << "\n";
 
-#if defined(__linux__)
-    out << "\n    .section .note.GNU-stack,\"\",@progbits\n";
-#endif
+    if (T.gnuStackNote)
+        out << "\n    .section .note.GNU-stack,\"\",@progbits\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -734,18 +765,38 @@ static std::string replaceExtension(const std::string& path, const std::string& 
 static std::string quote(const std::string& s) { return "\"" + s + "\""; }
 
 static void usage(const char* prog) {
-    std::cerr << "usage: " << prog << " <input.bf> [-o output]\n";
+    std::cerr
+        << "usage: " << prog << " <input.bf> [-o output]"
+        << " [--target NAME] [--cc CMD] [--no-link]\n"
+        << "       " << prog << " --version | --targets\n";
 }
 
 int main(int argc, char** argv) {
     std::string input;
     std::string output;
+    std::string targetName = "auto";
+    std::string cc         = "g++";
+    bool        noLink     = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "-o") {
             if (i + 1 >= argc) { std::cerr << "error: -o requires an argument\n"; return 1; }
             output = argv[++i];
+        } else if (a == "--target" || a == "-t") {
+            if (i + 1 >= argc) { std::cerr << "error: --target requires an argument\n"; return 1; }
+            targetName = argv[++i];
+        } else if (a == "--cc") {
+            if (i + 1 >= argc) { std::cerr << "error: --cc requires an argument\n"; return 1; }
+            cc = argv[++i];
+        } else if (a == "--no-link" || a == "-S") {
+            noLink = true;
+        } else if (a == "--version" || a == "-V") {
+            std::cout << "bfc " << kVersion << "\n";
+            return 0;
+        } else if (a == "--targets") {
+            for (int t = 0; t < kTargetCount; ++t) std::cout << kTargets[t].name << "\n";
+            return 0;
         } else if (a == "-h" || a == "--help") {
             usage(argv[0]);
             return 0;
@@ -762,11 +813,28 @@ int main(int argc, char** argv) {
 
     if (input.empty()) { usage(argv[0]); return 1; }
 
+    const Target* target = nullptr;
+    if (targetName == "auto") {
+        const char* host = hostTargetName();
+        if (!host) {
+            std::cerr << "error: this host architecture is not served by 'auto'; "
+                         "pass --target and a matching --cc (see --targets)\n";
+            return 1;
+        }
+        target = findTarget(host);
+    } else {
+        target = findTarget(targetName);
+        if (!target) {
+            std::cerr << "error: unknown target '" << targetName << "' (see --targets)\n";
+            return 1;
+        }
+    }
+
     const std::string asmPath = replaceExtension(input, ".s");
-    if (output.empty()) output = replaceExtension(input, kExeSuffix);
+    if (output.empty()) output = replaceExtension(input, target->exeSuffix);
 
     try {
-        BFCompiler compiler(input);
+        BFCompiler compiler(input, *target);
         compiler.parse(input);
         compiler.optimize();
 
@@ -777,16 +845,18 @@ int main(int argc, char** argv) {
         if (!out) throw std::runtime_error("failed while writing assembly file: " + asmPath);
 
         std::cout << "[bfc] " << input << " -> " << asmPath
-                  << "  (" << compiler.ops().size() << " ops)\n";
+                  << "  (" << compiler.ops().size() << " ops, target " << target->name << ")\n";
 
-        std::string cmd = "g++ -O2";
-        if (kStaticLink) cmd += " -static";
+        if (noLink) return 0;
+
+        std::string cmd = cc + " -O2";
+        if (target->staticLink) cmd += " -static";
         cmd += " -o " + quote(output) + " " + quote(asmPath);
 
         std::cout << "[bfc] " << cmd << "\n";
         const int rc = std::system(cmd.c_str());
         if (rc != 0) {
-            std::cerr << "error: g++ failed (exit code " << rc << ")\n";
+            std::cerr << "error: " << cc << " failed (exit code " << rc << ")\n";
             return 1;
         }
 

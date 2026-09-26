@@ -4,7 +4,7 @@
 
 ## Supported versions
 
-Only the latest release (currently beta-0.0.1) receives security fixes.
+Only the latest release (currently beta-0.0.2) receives security fixes.
 
 ## Reporting a vulnerability
 

@@ -6,6 +6,8 @@
 
 **English** | [简体中文](README.md)
 
+Version beta 0.0.2 · [Changelog](CHANGELOG_en-us.md)
+
 A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
 then drives g++ to assemble and link it into a standalone executable that
 depends only on the operating system runtime.
@@ -14,6 +16,11 @@ depends only on the operating system runtime.
 
     g++ -std=c++17 -O2 -static -o bfc.exe bfc.cpp
     bfc.exe <input.bf> [-o output.exe]
+
+Or use the Makefile (Linux / macOS / MinGW):
+
+    make
+    make test
 
 * Intermediate output: an .s file named after the input (hello.bf -> hello.s)
 * Final output: an executable named after the input; override with -o
@@ -72,6 +79,27 @@ the real loop, so semantics never change.
 * The platform branch is chosen at compile time: Windows x64 (no prefix,
   shadow space, -static), Linux/*BSD (no prefix, -static), macOS (underscore
   prefix, no -static).
+
+## Platform support
+
+| Platform | Build bfc | Build BF output | Status |
+|----------|:---------:|:---------------:|--------|
+| Windows 10 / 11 (x64) | yes | yes | CI verified |
+| Windows 8 / 8.1 (x64) | yes | yes | needs the UCRT (KB2999226) |
+| Windows 7 SP1 (x64) | partial | partial | needs the UCRT update, not CI verified |
+| Linux (x86-64, glibc) | yes | yes | CI verified |
+| Linux (x86-64, musl) | yes | yes | use --cc musl-g++ |
+| macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-13 runner) |
+| FreeBSD / OpenBSD (x86-64) | partial | partial | SysV ELF path, not CI verified |
+| Windows XP | no | no | no UCRT |
+| ARM64 (Apple Silicon / Raspberry Pi) | no | no | needs an aarch64 backend |
+| DOS / z/OS / z/VSE / RTOS | no | no | out of scope |
+
+The target ABI is chosen at run time, so one host can emit assembly for another:
+
+    bfc --target x86_64-linux --cc x86_64-linux-gnu-g++ hello.bf
+    bfc --target x86_64-windows --no-link hello.bf     # emit .s only
+    bfc --targets                                      # list targets
 
 ## Error handling
 
