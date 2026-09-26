@@ -1,5 +1,7 @@
 # Contributing to bfc
 
+[English](CONTRIBUTING_en-us.md) | **简体中文**
+
 感谢你对 bfc 的关注。
 
 ## 许可证

@@ -1,5 +1,7 @@
 # Security Policy 安全策略
 
+[English](SECURITY_en-us.md) | **简体中文**
+
 ## 支持的版本
 
 仅最新版本（当前 beta-0.0.1）接收安全修复。

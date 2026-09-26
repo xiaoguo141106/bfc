@@ -1,0 +1,119 @@
+# bfc - Brainfuck to x86-64 assembly compiler
+
+[![License](https://img.shields.io/github/license/xiaoguo141106/bfc?style=flat-square&color=111111)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/xiaoguo141106/bfc?style=flat-square&logo=github&color=111111)](https://github.com/xiaoguo141106/bfc/stargazers)
+[![Forks](https://img.shields.io/github/forks/xiaoguo141106/bfc?style=flat-square&logo=github&color=111111)](https://github.com/xiaoguo141106/bfc/forks)
+
+**English** | [简体中文](README.md)
+
+A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
+then drives g++ to assemble and link it into a standalone executable that
+depends only on the operating system runtime.
+
+## Build and usage
+
+    g++ -std=c++17 -O2 -static -o bfc.exe bfc.cpp
+    bfc.exe <input.bf> [-o output.exe]
+
+* Intermediate output: an .s file named after the input (hello.bf -> hello.s)
+* Final output: an executable named after the input; override with -o
+* Runs internally: g++ -O2 -static -o "output" "input.s"
+
+## Code structure
+
+    struct Op { char kind; int value; };
+    class BFCompiler { void parse(); void optimize(); void generate(); };
+
+parse filters meta-characters, validates brackets, merges runs and cancels
+opposite neighbours; optimize performs loop abstract interpretation; generate
+emits assembly per Op.kind.
+
+Op.kind: ordinary BF instructions, plus
+
+    Z   clear             A B C D  [->+<] / [->-<] / [-<+>] / [-<->]
+    S   scan loop         M        general transfer loop (index into transfers_)
+
+## Optimizations
+
+1. Meta-character filtering.
+2. Run merging, opposite-neighbour cancellation with re-merging
+   (+++--+ -> addb $2).
+3. [-] and [+] folded to movb $0.
+4. Six-token move patterns A/B/C/D.
+5. Scan loops [<] / [>] (any step): zero test on entry, then move-before-test.
+6. General multiply / copy / transfer loops: any offset, any coefficient,
+   multiple targets ([->+++<] uses imull, [->+>+<<] copies).
+7. Whole nested loops folded: summaries are computed inside-out and inner
+   summaries are substituted into the outer analysis.
+
+## Loop analysis
+
+Every loop body is abstractly interpreted. Each data cell records
+(valKnown, val) and (deltaKnown, delta): whether its value and its
+per-iteration delta are constant. Nested loops are summarised recursively and
+then applied: a known control value is applied exactly, an unknown one poisons
+the targets, clear sets 0, scan abandons the outer loop.
+
+Acceptance conditions: net pointer displacement 0; the control cell changes by
+exactly -1 per iteration; every other touched cell either accumulates a
+constant or is reset to a constant. Codegen uses imull/addb for accumulation,
+movb for resets, and zeroes the control cell.
+
+A reset cell only changes if the loop body ran at least once, so all resets -
+no matter how deeply nested - share a single testb/je (V!=0) guard and the
+semantics stay complete. When a proof fails the compiler conservatively keeps
+the real loop, so semantics never change.
+
+## x86-64 and portability
+
+* r12 = tape base, r13 = data pointer; a 30000-byte tape in .bss.
+* Entry rsp = 8 (mod 16), 0 after push rbp/r12/r13; Windows additionally
+  reserves 32 bytes of shadow space, so every call site stays 16-byte aligned.
+* The platform branch is chosen at compile time: Windows x64 (no prefix,
+  shadow space, -static), Linux/*BSD (no prefix, -static), macOS (underscore
+  prefix, no -static).
+
+## Error handling
+
+* Cannot open the file -> error, exit code 1.
+* Unmatched [ / ] -> error, exit code 1, no executable produced.
+
+## Tests
+
+    powershell -File tests\run_tests.ps1
+
+26 functional cases plus 2 error cases, all compared byte-for-byte against an
+independent interpreter (currently 28 passed, 0 failed). Sources live in
+tests/bf and the generated assembly is written to tests/asm; see
+tests/README.md. Random differential testing covers general transfer loops and
+multi-level reset nesting. g++ -Wall -Wextra is clean.
+
+## Licence
+
+This project is released under the GNU Affero General Public License v3.0 or
+later (AGPL-3.0-or-later). SPDX identifier: AGPL-3.0-or-later.
+
+* Full licence text: LICENSE
+* Output exception for compiler artefacts: LICENSE-EXCEPTION.md
+* Contribution guide (DCO sign-off, bug reports): CONTRIBUTING.md
+* Security policy (private vulnerability reports): SECURITY.md
+
+### Licence of compiler output
+
+The AGPL has no built-in compiler output exception. So that downstream users
+are not left guessing about the licence of what they compile, this project
+grants an additional permission under section 7 of the AGPLv3: the assembly,
+object files and executables that bfc generates from your own Brainfuck source
+may be used and distributed under terms of your choice. See
+LICENSE-EXCEPTION.md. The exception does not cover the bfc compiler itself.
+
+### Third-party components
+
+* libstdc++ / libgcc (statically linked with -static): GPL-3.0-or-later WITH
+  GCC-exception-3.1, which explicitly permits linking and redistribution.
+* MinGW-w64 runtime and headers: permissive licences (Public Domain / BSD /
+  ZPL style).
+* UCRT api-ms-win-crt-* and KERNEL32: Windows system components, not bundled
+  libraries.
+* bfc invokes an external g++ at run time; that is a process invocation, not
+  linking.

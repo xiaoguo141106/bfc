@@ -1,5 +1,11 @@
 # bfc - Brainfuck -> x86-64 汇编编译器
 
+[![License](https://img.shields.io/github/license/xiaoguo141106/bfc?style=flat-square&color=111111)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/xiaoguo141106/bfc?style=flat-square&logo=github&color=111111)](https://github.com/xiaoguo141106/bfc/stargazers)
+[![Forks](https://img.shields.io/github/forks/xiaoguo141106/bfc?style=flat-square&logo=github&color=111111)](https://github.com/xiaoguo141106/bfc/forks)
+
+[English](README_en-us.md) | **简体中文**
+
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 
