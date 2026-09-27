@@ -39,6 +39,55 @@ YYYY = release year; K = season number; F = fix number; n = index within the sta
 - Published only when a release has a major problem; no new features.
 - Example: 2026-2 has a major problem -> 2026-2-1; another -> 2026-2-2.
 
+## Official releases must ship prebuilt binaries
+
+Starting with the first official release (2026-1), every official release on
+GitHub **must** carry all of the prebuilt binaries below. RC and snapshot
+builds are not required to, but attaching them from the RC stage on is
+recommended so the packaging flow gets exercised early.
+
+### Asset matrix
+
+| File | --target | Built where | Toolchain |
+|------|----------|-------------|-----------|
+| bfc-<version>-Windows-x64.exe | x86_64-windows | locally | MinGW-w64 UCRT, g++ -static |
+| bfc-<version>-Linux-x86_64.tar.gz | x86_64-linux | locally (or WSL) | g++ -static |
+| bfc-<version>-Linux-arm64.tar.gz | aarch64-linux | CI (ubuntu-24.04-arm) | native g++ -static |
+| bfc-<version>-macOS-x86_64.tar.gz | x86_64-macos | CI (macos-13) | clang |
+| bfc-<version>-macOS-arm64.tar.gz | aarch64-macos | CI (macos-latest) | clang |
+| SHA256SUMS | - | locally | sha256sum |
+
+- <version> is the tag with any prefix such as beta- kept as is: tag beta-0.0.4
+  gives bfc-beta-0.0.4-Windows-x64.exe, tag 2026-1 gives
+  bfc-2026-1-Windows-x64.exe.
+- Architecture names follow uname -m: x86_64, arm64.
+- Linux and macOS use .tar.gz rather than a bare binary: downloading a bare file
+  from a release loses the executable bit. The archive holds bfc, LICENSE and
+  LICENSE-EXCEPTION.md.
+- macOS cannot link statically (only dynamic libSystem is provided; it is a
+  system component, not a third-party dependency).
+- Every asset must first pass the full test suite (28/28) on its own platform.
+  Windows and Linux x86-64 are verified locally, the rest by CI.
+
+### Who builds what
+
+| Asset | Builder | Why |
+|-------|---------|-----|
+| Windows x64 | local | MinGW-w64 toolchain is already here and easy to verify |
+| Linux x86-64 | local (or WSL) | same |
+| Linux arm64 | CI | no ARM64 environment locally; CI offers native arm64 runners |
+| macOS arm64 / x86-64 | CI | no Mac hardware locally |
+| BSD (future) | CI | same, via a BSD runner or QEMU |
+
+### Release steps
+
+1. Build Windows x64 and Linux x86-64 locally, run the full suite on each.
+2. Let CI build Linux arm64, macOS arm64 and macOS x86-64, and download the
+   artifacts from Actions.
+3. Generate SHA256SUMS locally.
+4. Tag, push, create the release, and upload all assets plus SHA256SUMS.
+5. In the release notes, state the --target and minimum OS for each file.
+
 ## Snapshot cycle: after every release
 
 Taking "2026-2 released, preparing 2026-3 (autumn)" as the example:

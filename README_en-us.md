@@ -22,6 +22,10 @@ Or use the Makefile (Linux / macOS / MinGW):
     make
     make test
 
+Official GitHub releases ship prebuilt binaries (Windows x64, Linux x86_64/arm64,
+macOS x86_64/arm64); see the release-asset section of VERSIONING_en-us.md for the
+packaging and build split.
+
 * Intermediate output: an .s file named after the input (hello.bf -> hello.s)
 * Final output: an executable named after the input; override with -o
 * Runs internally: g++ -O2 -static -o "output" "input.s"

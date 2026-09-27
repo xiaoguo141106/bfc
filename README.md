@@ -21,6 +21,9 @@ g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
     make
     make test
 
+正式版的 GitHub Release 附带预编译二进制（Windows x64、Linux x86_64/arm64、
+macOS x86_64/arm64），打包与构建分工见 VERSIONING.md 的「正式版 Release 必须附带预编译产物」。
+
 * 中间产物：输入同名 .s（hello.bf -> hello.s）
 * 最终产物：默认输入同名可执行文件，可用 -o 覆盖
 * 内部执行：g++ -O2 -static -o "output" "input.s"

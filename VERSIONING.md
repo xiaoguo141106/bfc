@@ -37,6 +37,49 @@ YYYY = 发布年份；K = 季节编号；F = 修复版号；n = 该阶段内序�
 - 只有当某个正式版出现重大问题才发布，不引入新功能。
 - 示例：2026-2 出重大问题 -> 2026-2-1；再出 -> 2026-2-2。
 
+## 正式版 Release 必须附带预编译产物
+
+从第一个正式版（2026-1）起，每个正式版的 GitHub Release **必须**附上下表全部
+预编译二进制。RC 与快照版不强制，但建议从 RC 阶段就开始附带，提前验证打包流程。
+
+### 产物矩阵
+
+| 文件 | 对应 --target | 构建位置 | 工具链 |
+|------|---------------|----------|--------|
+| bfc-<版本>-Windows-x64.exe | x86_64-windows | 本机 | MinGW-w64 UCRT，g++ -static |
+| bfc-<版本>-Linux-x86_64.tar.gz | x86_64-linux | 本机（或 WSL） | g++ -static |
+| bfc-<版本>-Linux-arm64.tar.gz | aarch64-linux | CI（ubuntu-24.04-arm） | 原生 g++ -static |
+| bfc-<版本>-macOS-x86_64.tar.gz | x86_64-macos | CI（macos-13） | clang |
+| bfc-<版本>-macOS-arm64.tar.gz | aarch64-macos | CI（macos-latest） | clang |
+| SHA256SUMS | — | 本机 | sha256sum |
+
+- <版本> 就是标签本身去掉 beta- 之类前缀；标签 beta-0.0.4 对应
+  bfc-beta-0.0.4-Windows-x64.exe，正式版标签 2026-1 对应 bfc-2026-1-Windows-x64.exe。
+- 架构名用 uname -m 的写法：x86_64、arm64。
+- Linux 与 macOS 用 .tar.gz 而不是裸二进制：从 Release 直接下载裸文件会丢执行位。
+  包内为 bfc、LICENSE、LICENSE-EXCEPTION.md。
+- macOS 不能 -static（系统只提供动态 libSystem，属系统组件，不计入第三方依赖）。
+- 每个产物必须先在对应平台跑通完整测试（28/28）才允许上传。
+  Windows 与 Linux x86-64 在本机验证，其余由 CI 验证。
+
+### 构建分工
+
+| 产物 | 构建方 | 原因 |
+|------|--------|------|
+| Windows x64 | 本机 | MinGW-w64 工具链已在本地，随手可验证 |
+| Linux x86-64 | 本机（或 WSL） | 同上 |
+| Linux arm64 | CI | 本机没有 ARM64 环境，CI 提供原生 arm64 runner |
+| macOS arm64 / x86-64 | CI | 本机没有 Mac 硬件 |
+| BSD（未来） | CI | 同上，用 BSD runner 或 QEMU |
+
+### 发布步骤
+
+1. 本机构建 Windows x64 与 Linux x86-64，各自跑一遍完整测试。
+2. 等 CI 构建出 Linux arm64、macOS arm64、macOS x86-64，并从 Actions 下载产物。
+3. 本机生成 SHA256SUMS。
+4. 打标签并推送，创建 Release，上传全部产物 + SHA256SUMS。
+5. Release 说明里写清每个文件对应的 --target 与最低系统要求。
+
 ## 快照循环：每个正式版发布之后
 
 以「2026-2 已发布，正在准备 2026-3（秋）」为例，依次发布：
