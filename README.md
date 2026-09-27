@@ -6,7 +6,7 @@
 
 [English](README_en-us.md) | **简体中文**
 
-版本 beta 0.0.3 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
+版本 beta 0.0.4 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
 
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
@@ -30,7 +30,7 @@ g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 | 选项 | 作用 |
 |------|------|
 | -o FILE | 输出文件（默认：可执行文件，或 -c 时的 .o） |
-| --target NAME | 目标 ABI：x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos（默认 auto = 本机） |
+| --target NAME | 目标 ABI：x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos / aarch64-linux / aarch64-macos（默认 auto = 本机） |
 | --cc CMD | 指定汇编 / 链接器，例如 --cc x86_64-linux-gnu-g++ |
 | --tape-size N | tape 字节数，默认 30000 |
 | --bounds-check | 为数据指针生成边界检查，越界以退出码 2 终止（见下） |
@@ -98,8 +98,10 @@ reset 型单元只在“循环体至少执行过一次”时才改变，因此�
 | Linux (x86-64, musl) | 支持 | 支持 | 使用 --cc musl-g++ |
 | macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-13 运行器） |
 | FreeBSD / OpenBSD (x86-64) | 部分 | 部分 | 走 SysV ELF 路径，未 CI 验证 |
+| Linux (aarch64, 树莓派 4/5 等) | 支持 | 支持 | 交叉 g++ + qemu 实测 + CI |
+| macOS Apple Silicon (aarch64) | 实验 | 实验 | 已实现，尚未验证 |
 | Windows XP | 不支持 | 不支持 | 没有 UCRT |
-| ARM64（Apple Silicon / 树莓派） | 不支持 | 不支持 | 需要 aarch64 后端，尚未实现 |
+| Windows on ARM (aarch64) | 不支持 | 不支持 | 尚未实现 |
 | DOS / z/OS / z/VSE / RTOS | 不支持 | 不支持 | 不在支持范围内 |
 
 目标 ABI 在运行时选择，因此可以在一个系统上为另一个系统生成汇编：

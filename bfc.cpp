@@ -73,27 +73,31 @@
 //  assembly for another (cross compilation).
 // ---------------------------------------------------------------------------
 enum class TargetOS { Windows, Elf, MacOS };
+enum class Arch     { X86_64, AArch64 };
 
 struct Target {
     const char* name;
+    Arch        arch;
     TargetOS    os;
     bool        shadowSpace;   // MS x64: reserve 32 bytes of home space
     const char* symPrefix;     // Mach-O symbols take a leading underscore
-    const char* arg0;          // register holding the first integer argument
+    const char* arg0;          // x86-64: register holding the first argument
     const char* exeSuffix;
     bool        staticLink;    // pass -static to the toolchain
     bool        gnuStackNote;  // emit .note.GNU-stack (ELF linkers only)
 };
 
 static const Target kTargets[] = {
-    { "x86_64-windows", TargetOS::Windows, true,  "",  "%ecx", ".exe", true,  false },
-    { "x86_64-linux",   TargetOS::Elf,     false, "",  "%edi", "",     true,  true  },
-    { "x86_64-freebsd", TargetOS::Elf,     false, "",  "%edi", "",     true,  false },
-    { "x86_64-macos",   TargetOS::MacOS,   false, "_", "%edi", "",     false, false },
+    { "x86_64-windows", Arch::X86_64,  TargetOS::Windows, true,  "",  "%ecx", ".exe", true,  false },
+    { "x86_64-linux",   Arch::X86_64,  TargetOS::Elf,     false, "",  "%edi", "",     true,  true  },
+    { "x86_64-freebsd", Arch::X86_64,  TargetOS::Elf,     false, "",  "%edi", "",     true,  false },
+    { "x86_64-macos",   Arch::X86_64,  TargetOS::MacOS,   false, "_", "%edi", "",     false, false },
+    { "aarch64-linux",  Arch::AArch64, TargetOS::Elf,     false, "",  "w0",   "",     true,  true  },
+    { "aarch64-macos",  Arch::AArch64, TargetOS::MacOS,   false, "_", "w0",   "",     false, false },
 };
 static const int kTargetCount = static_cast<int>(sizeof(kTargets) / sizeof(kTargets[0]));
 
-static const char* const kVersion = "beta 0.0.3";
+static const char* const kVersion = "beta 0.0.4";
 
 // Target of the machine this compiler runs on.  Only x86-64 hosts are served;
 // on another architecture --target (plus a matching --cc) must be given.
@@ -106,12 +110,14 @@ static const char* hostTargetName() {
 #  endif
 #elif defined(__APPLE__)
 #  if defined(__aarch64__) || defined(__arm64__)
-    return nullptr;
+    return "aarch64-macos";
 #  else
     return "x86_64-macos";
 #  endif
 #else
-#  if defined(__x86_64__) || defined(__amd64__)
+#  if defined(__aarch64__)
+    return "aarch64-linux";
+#  elif defined(__x86_64__) || defined(__amd64__)
     return "x86_64-linux";
 #  else
     return nullptr;
@@ -193,6 +199,8 @@ private:
     bool     analyzeBody(std::size_t lo, std::size_t hi, TransferSummary& out);
     void     computeMaxOffset();
     void     emitBoundsCheck(std::ostream& out, int oobLabel) const;
+    void     generateX86_64(std::ostream& out) const;
+    void     generateAArch64(std::ostream& out) const;
 
     std::string              sourceName_;
     const Target*            target_ = nullptr;
@@ -637,7 +645,270 @@ void BFCompiler::emitBoundsCheck(std::ostream& out, int oobLabel) const {
 //  => %rsp is 16-byte aligned immediately before each "call", as both the
 //     Microsoft x64 and System V AMD64 ABIs require.
 // ===========================================================================
+// ===========================================================================
+//  generateAArch64(): AArch64 (ARM64) output.
+//  x19 = tape base (callee-saved), x20 = data pointer (callee-saved).
+//  SP stays 16-byte aligned: two stp pre-index by 16, and bl requires it.
+// ===========================================================================
+void BFCompiler::generateAArch64(std::ostream& out) const {
+    const Target& T = *target_;
+    const std::string S(T.symPrefix);
+    const std::string mainSym = S + "main";
+    const std::string tapeSym = S + "tape";
+    const std::string putSym  = S + "putchar";
+    const std::string getSym  = S + "getchar";
+    const bool macho = (T.os == TargetOS::MacOS);
+    const std::string tapePage = macho ? (tapeSym + "@PAGE")    : tapeSym;
+    const std::string tapeLo   = macho ? (tapeSym + "@PAGEOFF") : (":lo12:" + tapeSym);
+
+    int nextLabel = 0;
+    const int oobId     = boundsCheck_ ? nextLabel++ : -1;
+    const int allocSize = tapeSize_ + 2 * maxOff_;
+
+    // move a 32-bit immediate (movz + optional movk)
+    auto movw = [&](const char* reg, int v) {
+        const unsigned u = static_cast<unsigned>(v < 0 ? 0 : v);
+        out << "    movz    " << reg << ", #" << (u & 0xffffu) << "\n";
+        if (u >> 16)
+            out << "    movk    " << reg << ", #" << ((u >> 16) & 0xffffu) << ", lsl #16\n";
+    };
+    // byte load/store at a fixed offset from x20 (negative offsets use LDUR/STUR)
+    auto ldb = [&](const char* reg, int off) {
+        if (off < 0) out << "    ldurb   " << reg << ", [x20, #" << off << "]\n";
+        else         out << "    ldrb    " << reg << ", [x20, #" << off << "]\n";
+    };
+    auto stb = [&](const char* reg, int off) {
+        if (off < 0) out << "    sturb   " << reg << ", [x20, #" << off << "]\n";
+        else         out << "    strb    " << reg << ", [x20, #" << off << "]\n";
+    };
+    // x20 += n   (n may be negative; large values go through w9)
+    auto addptr = [&](long n) {
+        const long a = n < 0 ? -n : n;
+        const char* op = n < 0 ? "sub" : "add";
+        if (a <= 4095) {
+            out << "    " << op << "     x20, x20, #" << a << "\n";
+        } else {
+            movw("w9", static_cast<int>(a));
+            out << "    " << op << "     x20, x20, x9\n";
+        }
+    };
+    // --bounds-check: trap if x20 leaves [x19, x19 + tapeSize)
+    auto bounds = [&]() {
+        if (!boundsCheck_) return;
+        out << "    cmp     x20, x19\n";
+        out << "    b.lo    .L" << oobId << "\n";
+        const int upper = maxOff_ + tapeSize_;
+        if (upper <= 4095) {
+            out << "    add     x9, x19, #" << upper << "\n";
+        } else {
+            movw("w9", upper);
+            out << "    add     x9, x19, x9\n";
+        }
+        out << "    cmp     x20, x9\n";
+        out << "    b.hs    .L" << oobId << "\n";
+    };
+    // A/B/C/D: cell[x20+off] += cell[x20], then clear cell[x20]
+    auto moveABCD = [&](int off, bool add) {
+        out << "    ldrb    w9, [x20]\n";
+        ldb("w10", off);
+        out << "    " << (add ? "add" : "sub") << "     w10, w10, w9\n";
+        stb("w10", off);
+        out << "    strb    wzr, [x20]\n";
+    };
+
+    out << "    .file   \"" << sourceName_ << "\"\n";
+    out << "    .text\n";
+    out << "    .globl  " << mainSym << "\n";
+    if (T.os == TargetOS::Elf)
+        out << "    .type   " << mainSym << ", %function\n";
+    out << mainSym << ":\n";
+    out << "    stp     x29, x30, [sp, #-16]!\n";
+    out << "    mov     x29, sp\n";
+    out << "    stp     x19, x20, [sp, #-16]!\n";
+    out << "    adrp    x19, " << tapePage << "\n";
+    out << "    add     x19, x19, " << tapeLo << "\n";
+    if (maxOff_ > 0) {
+        if (maxOff_ <= 4095) {
+            out << "    add     x19, x19, #" << maxOff_ << "\n";
+        } else {
+            movw("w9", maxOff_);
+            out << "    add     x19, x19, x9\n";
+        }
+    }
+    out << "    mov     x20, x19\n";
+    out << "\n";
+
+    std::vector<int> loops;
+    for (std::size_t oi = 0; oi < ops_.size(); ++oi) {
+        const Op& op = ops_[oi];
+        switch (op.kind) {
+
+        case '>':
+            addptr(op.value);
+            bounds();
+            break;
+        case '<':
+            addptr(-static_cast<long>(op.value));
+            bounds();
+            break;
+
+        case '+': {
+            const int n = norm256(op.value);
+            if (n) {
+                out << "    ldrb    w9, [x20]\n";
+                out << "    add     w9, w9, #" << n << "\n";
+                out << "    strb    w9, [x20]\n";
+            }
+            break;
+        }
+        case '-': {
+            const int n = norm256(op.value);
+            if (n) {
+                out << "    ldrb    w9, [x20]\n";
+                out << "    sub     w9, w9, #" << n << "\n";
+                out << "    strb    w9, [x20]\n";
+            }
+            break;
+        }
+
+        case '.':
+            out << "    ldrb    w0, [x20]\n";
+            out << "    bl      " << putSym << "\n";
+            break;
+        case ',':
+            out << "    bl      " << getSym << "\n";
+            out << "    strb    w0, [x20]\n";
+            break;
+
+        case '[': {
+            const int id = nextLabel++;
+            loops.push_back(id);
+            out << ".L" << id << ":\n";
+            out << "    ldrb    w9, [x20]\n";
+            out << "    cbz     w9, .L" << id << "_end\n";
+            break;
+        }
+        case ']': {
+            const int id = loops.back();
+            loops.pop_back();
+            out << "    b       .L" << id << "\n";
+            out << ".L" << id << "_end:\n";
+            break;
+        }
+
+        case 'Z':
+            out << "    strb    wzr, [x20]\n";
+            break;
+        case 'A': moveABCD(1, true);  break;
+        case 'B': moveABCD(1, false); break;
+        case 'C': moveABCD(-1, true); break;
+        case 'D': moveABCD(-1, false); break;
+
+        case 'S': {
+            const int  d    = op.value;
+            const bool fwd  = d > 0;
+            const int  step = fwd ? d : -d;
+            const int  id   = nextLabel++;
+            out << "    ldrb    w9, [x20]\n";
+            out << "    cbz     w9, .L" << id << "_end\n";
+            out << ".L" << id << ":\n";
+            addptr(fwd ? step : -step);
+            bounds();
+            out << "    ldrb    w9, [x20]\n";
+            out << "    cbnz    w9, .L" << id << "\n";
+            out << ".L" << id << "_end:\n";
+            break;
+        }
+
+        case 'M': {
+            const TransferSummary& t = transfers_[static_cast<std::size_t>(op.value)];
+            const bool guard = !t.resets.empty();
+            const int  id    = nextLabel++;
+            out << "    ldrb    w9, [x20]\n";
+            if (guard)
+                out << "    cbz     w9, .L" << id << "_end\n";
+            for (std::size_t a = 0; a < t.accum.size(); ++a) {
+                const int off = t.accum[a].first;
+                const int cf  = t.accum[a].second;
+                if (cf == 1) {
+                    ldb("w10", off);
+                    out << "    add     w10, w10, w9\n";
+                    stb("w10", off);
+                } else if (cf == 255) {
+                    ldb("w10", off);
+                    out << "    sub     w10, w10, w9\n";
+                    stb("w10", off);
+                } else {
+                    movw("w11", cf);
+                    out << "    mul     w10, w11, w9\n";
+                    ldb("w12", off);
+                    out << "    add     w12, w12, w10\n";
+                    stb("w12", off);
+                }
+            }
+            for (std::size_t r = 0; r < t.resets.size(); ++r) {
+                const int off = t.resets[r].first;
+                const int val = t.resets[r].second;
+                if (val == 0) {
+                    stb("wzr", off);
+                } else {
+                    movw("w11", val);
+                    stb("w11", off);
+                }
+            }
+            out << "    strb    wzr, [x20]\n";
+            if (guard)
+                out << ".L" << id << "_end:\n";
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+
+    out << "\n";
+    out << "    mov     w0, #0\n";
+    out << "    ldp     x19, x20, [sp], #16\n";
+    out << "    ldp     x29, x30, [sp], #16\n";
+    out << "    ret\n";
+    if (T.os == TargetOS::Elf)
+        out << "    .size   " << mainSym << ", .-" << mainSym << "\n";
+
+    if (boundsCheck_) {
+        out << "\n.L" << oobId << ":\n";
+        out << "    mov     w0, #2\n";
+        out << "    bl      " << S << "exit\n";
+    }
+
+    // ---- tape: zero-filled data area -------------------------------------
+    if (T.os == TargetOS::MacOS)
+        out << "\n    .section __DATA,__bss\n";
+    else if (T.os == TargetOS::Windows)
+        out << "\n    .section .bss\n";
+    else
+        out << "\n    .bss\n";
+    out << "    .p2align 4\n";
+    if (T.os == TargetOS::Elf) {
+        out << "    .type   " << tapeSym << ", %object\n";
+        out << "    .size   " << tapeSym << ", " << allocSize << "\n";
+    }
+    out << "    .globl  " << tapeSym << "\n";
+    out << tapeSym << ":\n";
+    out << "    .zero   " << allocSize << "\n";
+
+    if (T.gnuStackNote)
+        out << "\n    .section .note.GNU-stack,\"\",@progbits\n";
+}
+
 void BFCompiler::generate(std::ostream& out) const {
+    if (target_->arch == Arch::AArch64)
+        generateAArch64(out);
+    else
+        generateX86_64(out);
+}
+
+void BFCompiler::generateX86_64(std::ostream& out) const {
     const Target& T = *target_;
     const std::string S(T.symPrefix);
     const std::string mainSym = S + "main";

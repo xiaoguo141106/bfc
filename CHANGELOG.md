@@ -4,6 +4,18 @@
 
 本项目处于 beta 阶段，版本号不保证严格遵循语义化版本。
 
+## beta 0.0.4
+
+- 新增 aarch64（ARM64）后端
+  - --target aarch64-linux：树莓派 4/5、ARM 服务器、ARM 版 WSL 等
+  - --target aarch64-macos：Apple Silicon（实验性，尚未本机验证）
+- aarch64-linux 已在 x86-64 Linux 上用交叉 g++ 加 qemu-aarch64 跑通全部 28 个用例
+- --target auto 现在能识别 aarch64 宿主
+- CI：Linux 与 Linux-ARM64 拆分为独立任务，ARM64 任务从本版起跑完整测试
+- 修复了一些已知的 BUG：
+  - 修复 AArch64 循环回边跳到循环体、导致循环条件不再判断的问题
+  - 修复 AArch64 跨年/跨页取址在 Mach-O 上的重定位写法（@PAGE / @PAGEOFF）
+
 ## beta 0.0.3
 
 - 新增 --tape-size N：可配置 tape 字节数（默认 30000）

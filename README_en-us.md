@@ -6,7 +6,7 @@
 
 **English** | [简体中文](README.md)
 
-Version beta 0.0.3 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
+Version beta 0.0.4 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
 
 A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
 then drives g++ to assemble and link it into a standalone executable that
@@ -31,7 +31,7 @@ Or use the Makefile (Linux / macOS / MinGW):
 | Option | Effect |
 |--------|--------|
 | -o FILE | Output file (default: an executable, or a .o with -c) |
-| --target NAME | Target ABI: x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos (default auto = host) |
+| --target NAME | Target ABI: x86_64-windows / x86_64-linux / x86_64-freebsd / x86_64-macos / aarch64-linux / aarch64-macos (default auto = host) |
 | --cc CMD | Assembler/linker to use, e.g. --cc x86_64-linux-gnu-g++ |
 | --tape-size N | Tape size in bytes, default 30000 |
 | --bounds-check | Emit bounds checks for the data pointer; exit code 2 on escape (see below) |
@@ -109,8 +109,10 @@ the real loop, so semantics never change.
 | Linux (x86-64, musl) | yes | yes | use --cc musl-g++ |
 | macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-13 runner) |
 | FreeBSD / OpenBSD (x86-64) | partial | partial | SysV ELF path, not CI verified |
+| Linux (aarch64, Raspberry Pi 4/5, ...) | yes | yes | cross g++ + qemu verified locally, and CI |
+| macOS Apple Silicon (aarch64) | experimental | experimental | implemented, not yet verified |
 | Windows XP | no | no | no UCRT |
-| ARM64 (Apple Silicon / Raspberry Pi) | no | no | needs an aarch64 backend |
+| Windows on ARM (aarch64) | no | no | not implemented yet |
 | DOS / z/OS / z/VSE / RTOS | no | no | out of scope |
 
 The target ABI is chosen at run time, so one host can emit assembly for another:

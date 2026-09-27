@@ -5,6 +5,20 @@
 This project is in beta; version numbers are not guaranteed to follow strict
 semantic versioning.
 
+## beta 0.0.4
+
+- New aarch64 (ARM64) backend
+  - --target aarch64-linux: Raspberry Pi 4/5, ARM servers, ARM WSL, ...
+  - --target aarch64-macos: Apple Silicon (experimental, not yet verified locally)
+- aarch64-linux passes all 28 cases on x86-64 Linux using a cross g++ plus qemu-aarch64
+- --target auto now recognises an aarch64 host
+- CI: Linux and Linux-ARM64 are separate jobs; the ARM64 job runs the full test
+  suite from this version on
+- Fixed some known bugs:
+  - an AArch64 loop back-edge jumped into the loop body, so the loop condition
+    was no longer tested
+  - Mach-O page-relative addressing for the tape (@PAGE / @PAGEOFF)
+
 ## beta 0.0.3
 
 - New --tape-size N to configure the tape size in bytes (default 30000)
