@@ -110,7 +110,7 @@ the real loop, so semantics never change.
 | macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-13 runner) |
 | FreeBSD / OpenBSD (x86-64) | partial | partial | SysV ELF path, not CI verified |
 | Linux (aarch64, Raspberry Pi 4/5, ...) | yes | yes | cross g++ + qemu verified locally, and CI |
-| macOS Apple Silicon (aarch64) | experimental | experimental | implemented, not yet verified |
+| macOS Apple Silicon (aarch64) | yes | yes | CI verified (native arm64 on macos-latest) |
 | Windows XP | no | no | no UCRT |
 | Windows on ARM (aarch64) | no | no | not implemented yet |
 | DOS / z/OS / z/VSE / RTOS | no | no | out of scope |

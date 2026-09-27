@@ -99,7 +99,7 @@ reset 型单元只在“循环体至少执行过一次”时才改变，因此�
 | macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-13 运行器） |
 | FreeBSD / OpenBSD (x86-64) | 部分 | 部分 | 走 SysV ELF 路径，未 CI 验证 |
 | Linux (aarch64, 树莓派 4/5 等) | 支持 | 支持 | 交叉 g++ + qemu 实测 + CI |
-| macOS Apple Silicon (aarch64) | 实验 | 实验 | 已实现，尚未验证 |
+| macOS Apple Silicon (aarch64) | 支持 | 支持 | CI 验证（macos-latest 原生 arm64） |
 | Windows XP | 不支持 | 不支持 | 没有 UCRT |
 | Windows on ARM (aarch64) | 不支持 | 不支持 | 尚未实现 |
 | DOS / z/OS / z/VSE / RTOS | 不支持 | 不支持 | 不在支持范围内 |

@@ -30,10 +30,7 @@ jobs:
           ./bfc --targets
 
   macos-arm:
-    name: macOS ARM64 (experimental)
-    # aarch64-macos is implemented but not yet verified on real hardware.
-    # Promote to a required job once this is green.
-    continue-on-error: true
+    name: macOS ARM64
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

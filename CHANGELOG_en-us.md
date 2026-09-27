@@ -9,11 +9,12 @@ semantic versioning.
 
 - New aarch64 (ARM64) backend
   - --target aarch64-linux: Raspberry Pi 4/5, ARM servers, ARM WSL, ...
-  - --target aarch64-macos: Apple Silicon (experimental, not yet verified locally)
+  - --target aarch64-macos: Apple Silicon (CI-verified on native arm64 macos-latest)
 - aarch64-linux passes all 28 cases on x86-64 Linux using a cross g++ plus qemu-aarch64
 - --target auto now recognises an aarch64 host
 - CI: Linux and Linux-ARM64 are separate jobs; the ARM64 job runs the full test
-  suite from this version on
+  suite from this version on. macOS ARM64 now passes on a native arm64 runner,
+  so it is no longer an experimental job
 - Fixed some known bugs:
   - an AArch64 loop back-edge jumped into the loop body, so the loop condition
     was no longer tested
