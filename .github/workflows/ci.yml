@@ -5,38 +5,55 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    name: build + test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-13, windows-latest]
+  linux:
+    name: Linux x86-64
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build and test (Unix)
-        if: runner.os != 'Windows'
+      - name: Build (warnings are errors) and run tests
         run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
-
-      - name: Build bfc (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc.exe bfc.cpp
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./tests/run_tests.ps1
-
-      - name: Report version and targets (Unix)
-        if: runner.os != 'Windows'
+      - name: Report version and targets
         run: |
           ./bfc --version
           ./bfc --targets
 
-      - name: Report version and targets (Windows)
-        if: runner.os == 'Windows'
+  linux-arm:
+    name: Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the compiler (portable C++17)
+        run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc bfc.cpp
+      - name: Report version and targets
+        run: |
+          ./bfc --version
+          ./bfc --targets
+      # Full "make test" on ARM64 is enabled by the aarch64 backend (0.0.4).
+
+  macos:
+    name: macOS x86-64
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (warnings are errors) and run tests
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
+      - name: Report version and targets
+        run: |
+          ./bfc --version
+          ./bfc --targets
+
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (warnings are errors)
+        shell: pwsh
+        run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc.exe bfc.cpp
+      - name: Run tests
+        shell: pwsh
+        run: ./tests/run_tests.ps1
+      - name: Report version and targets
         shell: pwsh
         run: |
           ./bfc.exe --version
