@@ -8,6 +8,8 @@
 
 Version beta 0.0.4 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
 
+Hosted on both [GitHub](https://github.com/xiaoguo141106/bfc) and [Codeberg](https://codeberg.org/xiaoguo/bfc); both sites are mirrored for every release.
+
 A C++17 compiler that turns Brainfuck into x86-64 assembly (AT&T syntax) and
 then drives g++ to assemble and link it into a standalone executable that
 depends only on the operating system runtime.

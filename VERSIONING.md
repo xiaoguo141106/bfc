@@ -39,7 +39,7 @@ YYYY = 发布年份；K = 季节编号；F = 修复版号；n = 该阶段内序�
 
 ## 正式版 Release 必须附带预编译产物
 
-从第一个正式版（2026-1）起，每个正式版的 GitHub Release **必须**附上下表全部
+从第一个正式版（2026-1）起，每个正式版在 GitHub 与 Codeberg 两个站点的 Release **必须**附上下表全部
 预编译二进制。RC 与快照版不强制，但建议从 RC 阶段就开始附带，提前验证打包流程。
 
 ### 产物矩阵
@@ -77,8 +77,9 @@ YYYY = 发布年份；K = 季节编号；F = 修复版号；n = 该阶段内序�
 1. 本机构建 Windows x64 与 Linux x86-64，各自跑一遍完整测试。
 2. 等 CI 构建出 Linux arm64、macOS arm64、macOS x86-64，并从 Actions 下载产物。
 3. 本机生成 SHA256SUMS。
-4. 打标签并推送，创建 Release，上传全部产物 + SHA256SUMS。
-5. Release 说明里写清每个文件对应的 --target 与最低系统要求。
+4. 打标签并推送：origin 配了 GitHub 与 Codeberg 两个 push URL，一次推送同时到两处。
+5. 在两个站点分别创建 Release，上传同一批产物 + SHA256SUMS。
+6. Release 说明里写清每个文件对应的 --target 与最低系统要求。
 
 ## 快照循环：每个正式版发布之后
 

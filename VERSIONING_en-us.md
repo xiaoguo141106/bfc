@@ -42,7 +42,7 @@ YYYY = release year; K = season number; F = fix number; n = index within the sta
 ## Official releases must ship prebuilt binaries
 
 Starting with the first official release (2026-1), every official release on
-GitHub **must** carry all of the prebuilt binaries below. RC and snapshot
+GitHub and Codeberg **must** carry all of the prebuilt binaries below. RC and snapshot
 builds are not required to, but attaching them from the RC stage on is
 recommended so the packaging flow gets exercised early.
 
@@ -85,8 +85,10 @@ recommended so the packaging flow gets exercised early.
 2. Let CI build Linux arm64, macOS arm64 and macOS x86-64, and download the
    artifacts from Actions.
 3. Generate SHA256SUMS locally.
-4. Tag, push, create the release, and upload all assets plus SHA256SUMS.
-5. In the release notes, state the --target and minimum OS for each file.
+4. Tag and push: origin carries two push URLs (GitHub and Codeberg), so one push
+   reaches both.
+5. Create the release on both sites and upload the same assets plus SHA256SUMS.
+6. In the release notes, state the --target and minimum OS for each file.
 
 ## Snapshot cycle: after every release
 

@@ -8,6 +8,8 @@
 
 版本 beta 0.0.4 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
 
+仓库同时托管在 [GitHub](https://github.com/xiaoguo141106/bfc) 与 [Codeberg](https://codeberg.org/xiaoguo/bfc)，两处同步发布与分发。
+
 C++17 编写。把 Brainfuck 编译成 x86-64 汇编（AT&T 语法），再驱动
 g++ 汇编链接为只依赖操作系统运行时的独立可执行文件。
 
