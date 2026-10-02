@@ -18,6 +18,11 @@
 # It is a local workspace and must never be committed.
 /.dsh/
 
+# 本地临时脚本/数据（绝不提交）
+/_*.ps1
+/_*.md
+/_*.txt
+
 # ---- editors / operating systems -----------------------------------------
 .vscode/
 .idea/
