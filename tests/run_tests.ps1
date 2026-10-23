@@ -41,7 +41,8 @@ $cases = @(
   @{ n = "wrap255";      exp = "FF" },
   @{ n = "wrap300";      exp = "2C" },
   @{ n = "comment";      exp = "41" },
-  @{ n = "echo";         exp = "5A" }
+  @{ n = "echo";         exp = "5A" },
+  @{ n = "nest_deep_ok"; exp = "" }
 )
 
 $pass = 0; $fail = 0
@@ -65,7 +66,7 @@ Pop-Location
 # bracket errors must be rejected (non-zero exit, no executable)
 $saved = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-foreach ($n in @("err_open", "err_close")) {
+foreach ($n in @("err_open", "err_close", "nest_limit")) {
   $src = Join-Path $bdir ($n + ".bf")
   $exe = $bin + "\" + $n + ".exe"
   cmd /c ('"' + $bfc + '" "' + $src + '" -o "' + $exe + '" 2>nul') | Out-Null

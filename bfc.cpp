@@ -133,6 +133,16 @@ static const Target* findTarget(const std::string& name) {
 
 static const int kTapeSize = 30000;
 
+// Maximum bracket nesting accepted by the parser.
+//
+// optimizeRange() and classify() recurse once per nesting level, so an
+// unbounded depth would let a tiny input overflow the stack (a trivial
+// denial of service). 10000 levels is far beyond any real Brainfuck
+// program. This is deliberately a single compile-time constant, not a
+// command-line option: adjust it here and rebuild if you need a different
+// ceiling.
+static const int kMaxNesting = 10000;
+
 // ---------------------------------------------------------------------------
 //  Op -- one code-generation unit
 //    kind : plain BF   '>' '<' '+' '-' '.' ',' '[' ']'
@@ -264,6 +274,9 @@ void BFCompiler::parse(const std::string& path) {
     std::vector<char> open;
     for (std::size_t i = 0; i < code.size(); ++i) {
         if (code[i] == '[') {
+            if (static_cast<int>(open.size()) >= kMaxNesting)
+                throw std::runtime_error("nesting too deep in " + path + ": more than " +
+                                         std::to_string(kMaxNesting) + " nested loops");
             open.push_back('[');
         } else if (code[i] == ']') {
             if (open.empty())

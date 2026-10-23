@@ -76,10 +76,11 @@ wrap255|FF
 wrap300|2C
 comment|41
 echo|5A
+nest_deep_ok|
 CASES
 
 # bracket errors must be rejected
-for n in err_open err_close; do
+for n in err_open err_close nest_limit; do
     if "$bfc" "$bf/$n.bf" -o "$bin/$n" >/dev/null 2>&1; then
         echo "FAIL $n: should have been rejected"
         fail=$((fail + 1))
