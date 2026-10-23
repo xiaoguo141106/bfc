@@ -72,6 +72,18 @@ YYYY = 发布年份；K = 季节编号；F = 修复版号；n = 该阶段内序�
 | macOS arm64 / x86-64 | CI | 本机没有 Mac 硬件 |
 | BSD（未来） | CI | 同上，用 BSD runner 或 QEMU |
 
+### 自动化
+
+.github/workflows/release.yml 在推送 20* 标签（RC 或正式版）时自动：
+
+1. 在五个 runner 上构建：Linux x86_64、Linux arm64、macOS x86_64、macOS arm64、Windows x64；
+2. 校验 bfc --version 与标签一致（不一致直接失败）；
+3. 按上面的命名打包（Linux/macOS 为 tar.gz，含 LICENSE 与 LICENSE-EXCEPTION.md）；
+4. 生成 SHA256SUMS；
+5. 上传到该标签的 GitHub Release（Release 不存在则自动创建，含 RC 时标记 prerelease）。
+
+workflow_dispatch 只构建、不发版，用于验证流水线。
+
 ### 发布步骤
 
 1. 本机构建 Windows x64 与 Linux x86-64，各自跑一遍完整测试。

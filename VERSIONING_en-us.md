@@ -79,6 +79,21 @@ recommended so the packaging flow gets exercised early.
 | macOS arm64 / x86-64 | CI | no Mac hardware locally |
 | BSD (future) | CI | same, via a BSD runner or QEMU |
 
+### Automation
+
+.github/workflows/release.yml runs when a 20* tag (RC or official) is pushed:
+
+1. builds on five runners: Linux x86_64, Linux arm64, macOS x86_64, macOS arm64,
+   Windows x64;
+2. checks that bfc --version matches the tag (hard failure otherwise);
+3. packages with the names above (tar.gz for Linux/macOS, including LICENSE and
+   LICENSE-EXCEPTION.md);
+4. generates SHA256SUMS;
+5. uploads everything to that tag's GitHub Release (creating it if needed, and
+   marking RC tags as prerelease).
+
+workflow_dispatch builds only and does not publish, for pipeline testing.
+
 ### Release steps
 
 1. Build Windows x64 and Linux x86-64 locally, run the full suite on each.
