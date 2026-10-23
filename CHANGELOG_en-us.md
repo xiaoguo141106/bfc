@@ -5,6 +5,23 @@
 This project is in beta; version numbers are not guaranteed to follow strict
 semantic versioning.
 
+## beta 0.0.5
+
+- Safety and robustness
+  - The parser now caps bracket nesting at 10000 (kMaxNesting, a compile-time
+    constant, not a command-line option). Exceeding it fails the compile with a
+    clear error instead of overflowing the compiler stack (about ten thousand
+    nested loops were enough to crash before).
+- Engineering
+  - New CI sanitizer job: builds with AddressSanitizer + UndefinedBehaviorSanitizer,
+    runs the full suite, and asserts that libasan/libubsan are really linked
+  - Makefile gains sanitize / test-san targets; the test runners accept BFC= to
+    select the binary under test
+  - Test cases 28 -> 30: nest_deep_ok (1000 levels, must compile) and nest_limit
+    (over the limit, must be rejected)
+- Copyright notices unified to "Xiaoguo and bfc contributors" (bfc.cpp and
+  LICENSE-EXCEPTION.md)
+
 ## beta 0.0.4
 
 - New aarch64 (ARM64) backend

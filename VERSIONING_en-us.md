@@ -57,8 +57,8 @@ recommended so the packaging flow gets exercised early.
 | bfc-<version>-macOS-arm64.tar.gz | aarch64-macos | CI (macos-latest) | clang |
 | SHA256SUMS | - | locally | sha256sum |
 
-- <version> is the tag with any prefix such as beta- kept as is: tag beta-0.0.4
-  gives bfc-beta-0.0.4-Windows-x64.exe, tag 2026-1 gives
+- <version> is the tag with any prefix such as beta- kept as is: tag beta-0.0.5
+  gives bfc-beta-0.0.5-Windows-x64.exe, tag 2026-1 gives
   bfc-2026-1-Windows-x64.exe.
 - Architecture names follow uname -m: x86_64, arm64.
 - Linux and macOS use .tar.gz rather than a bare binary: downloading a bare file

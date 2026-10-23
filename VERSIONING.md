@@ -53,8 +53,8 @@ YYYY = 发布年份；K = 季节编号；F = 修复版号；n = 该阶段内序�
 | bfc-<版本>-macOS-arm64.tar.gz | aarch64-macos | CI（macos-latest） | clang |
 | SHA256SUMS | — | 本机 | sha256sum |
 
-- <版本> 就是标签本身去掉 beta- 之类前缀；标签 beta-0.0.4 对应
-  bfc-beta-0.0.4-Windows-x64.exe，正式版标签 2026-1 对应 bfc-2026-1-Windows-x64.exe。
+- <版本> 就是标签本身去掉 beta- 之类前缀；标签 beta-0.0.5 对应
+  bfc-beta-0.0.5-Windows-x64.exe，正式版标签 2026-1 对应 bfc-2026-1-Windows-x64.exe。
 - 架构名用 uname -m 的写法：x86_64、arm64。
 - Linux 与 macOS 用 .tar.gz 而不是裸二进制：从 Release 直接下载裸文件会丢执行位。
   包内为 bfc、LICENSE、LICENSE-EXCEPTION.md。

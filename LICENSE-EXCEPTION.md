@@ -3,7 +3,7 @@
 Additional permission under section 7 of the GNU Affero General Public License,
 version 3 (AGPL-3.0-or-later).
 
-Copyright (C) 2026 Xiaoguo
+Copyright (C) 2026 Xiaoguo and bfc contributors
 
 As a special exception, Xiaoguo and the bfc contributors give you permission to
 use, copy, modify and distribute the assembly files, object files and

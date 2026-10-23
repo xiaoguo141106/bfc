@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Xiaoguo
+// Copyright (C) 2026 Xiaoguo and bfc contributors
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Affero General Public License as published by
@@ -97,7 +97,7 @@ static const Target kTargets[] = {
 };
 static const int kTargetCount = static_cast<int>(sizeof(kTargets) / sizeof(kTargets[0]));
 
-static const char* const kVersion = "beta 0.0.4";
+static const char* const kVersion = "beta 0.0.5";
 
 // Target of the machine this compiler runs on.  Only x86-64 hosts are served;
 // on another architecture --target (plus a matching --cc) must be given.

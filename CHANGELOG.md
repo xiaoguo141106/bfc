@@ -4,6 +4,18 @@
 
 本项目处于 beta 阶段，版本号不保证严格遵循语义化版本。
 
+## beta 0.0.5
+
+- 安全与健壮性
+  - 解析器限制括号嵌套深度为 10000（kMaxNesting，编译期常量，不是命令行参数）；
+    超出时编译失败并给出明确错误，而不是让编译器栈溢出（修复前约一万层嵌套即可崩溃）
+- 工程
+  - CI 新增 sanitizer 任务：AddressSanitizer + UndefinedBehaviorSanitizer 构建后跑完整测试，
+    并断言 libasan/libubsan 确实被链接
+  - Makefile 新增 sanitize / test-san 目标；测试运行器支持用 BFC= 指定被测二进制
+  - 测试用例 28 → 30：新增 nest_deep_ok（1000 层嵌套应通过）与 nest_limit（超限应被拒绝）
+- 版权信息统一为 "Xiaoguo and bfc contributors"（bfc.cpp 与 LICENSE-EXCEPTION.md）
+
 ## beta 0.0.4
 
 - 新增 aarch64（ARM64）后端
