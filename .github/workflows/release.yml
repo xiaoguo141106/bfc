@@ -1,0 +1,109 @@
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - '20*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: Linux-x86_64
+          - os: ubuntu-24.04-arm
+            asset: Linux-arm64
+          - os: macos-13
+            asset: macOS-x86_64
+          - os: macos-latest
+            asset: macOS-arm64
+          - os: windows-latest
+            asset: Windows-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc.exe bfc.cpp
+
+      - name: Verify kVersion matches the tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then got="$(./bfc.exe --version)"; else got="$(./bfc --version)"; fi
+          got="${got#bfc }"
+          if [ "$got" != "$GITHUB_REF_NAME" ]; then
+            echo "error: kVersion is '$got' but the tag is '$GITHUB_REF_NAME'"
+            exit 1
+          fi
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            ver="$GITHUB_REF_NAME"
+          else
+            ver="$(./bfc --version | sed 's/^bfc //; s/ /-/g')"
+          fi
+          mkdir -p dist
+          tar -czf "dist/bfc-$ver-${{ matrix.asset }}.tar.gz" bfc LICENSE LICENSE-EXCEPTION.md
+          ls -l dist
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $ver = $env:GITHUB_REF_NAME }
+          else { $ver = ((& .\bfc.exe --version) -replace '^bfc ','') -replace ' ','-' }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item bfc.exe "dist/bfc-$ver-Windows-x64.exe"
+          Get-ChildItem dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish assets
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+      - name: Upload assets to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          flags=""
+          case "$tag" in
+            *RC*|beta-*) flags="--prerelease" ;;
+          esac
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "bfc $tag" --generate-notes $flags
+          gh release upload "$tag" dist/* --clobber
