@@ -66,3 +66,16 @@ By making a contribution to this project, I certify that:
 
 * 每个行为变更都要在 tests/bf 下新增用例，并更新 tests/run_tests.ps1
   里的期望输出表。
+
+## 内存安全检查（sanitizer）
+
+bfc 是 C++ 程序，解析与代码生成频繁接触指针和下标，CI 会额外跑一组
+AddressSanitizer + UndefinedBehaviorSanitizer 构建（约为正常构建的 2-3 倍耗时，
+只在 CI 使用，发布二进制不开）。
+
+本机运行：
+
+    make test-san
+
+若本机没有 libasan/libubsan（例如 MinGW），该命令会提示改用 Linux / macOS，
+或直接查看 CI 的 "Linux sanitizers" 任务。

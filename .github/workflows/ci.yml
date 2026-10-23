@@ -17,6 +17,22 @@ jobs:
           ./bfc --version
           ./bfc --targets
 
+  sanitizers:
+    name: Linux sanitizers (ASan + UBSan)
+    runs-on: ubuntu-latest
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with ASan + UBSan and run tests
+        # LDFLAGS= drops -static: the sanitizer runtime must link dynamically.
+        run: make LDFLAGS= CXXFLAGS="-std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_GLIBCXX_ASSERTIONS" test
+      - name: Report version and targets
+        run: |
+          ./bfc --version
+          ./bfc --targets
+
   linux-arm:
     name: Linux ARM64
     runs-on: ubuntu-24.04-arm

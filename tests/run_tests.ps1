@@ -8,7 +8,7 @@
 $ErrorActionPreference = "Stop"
 $here = $PSScriptRoot
 $root = Split-Path -Parent $here
-$bfc  = Join-Path $root "bfc.exe"
+$bfc  = if ($env:BFC) { $env:BFC } else { Join-Path $root "bfc.exe" }
 $bdir = Join-Path $here "bf"
 $adir = Join-Path $here "asm"
 $bin  = Join-Path $here "bin"

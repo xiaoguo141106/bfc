@@ -71,3 +71,16 @@ SECURITY.md instead.
 
 * Every behaviour change needs a new case under tests/bf and an update to the
   expected-output table in tests/run_tests.ps1.
+
+## Memory-safety checks (sanitizers)
+
+bfc is C++: parsing and code generation touch pointers and indices constantly, so
+CI also runs an AddressSanitizer + UndefinedBehaviorSanitizer build (roughly 2-3x
+slower; CI only, never used for release binaries).
+
+To run it locally:
+
+    make test-san
+
+If libasan/libubsan is missing (for example on MinGW), the target tells you to
+use Linux / macOS or to check the "Linux sanitizers" CI job.

@@ -8,8 +8,11 @@ set -u
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
-bfc="$root/bfc"
-[ -x "$bfc" ] || bfc="$root/bfc.exe"
+bfc="${BFC:-}"
+if [ -z "$bfc" ]; then
+    bfc="$root/bfc"
+    [ -x "$bfc" ] || bfc="$root/bfc.exe"
+fi
 bf="$here/bf"
 asm="$here/asm"
 bin="$here/bin"
