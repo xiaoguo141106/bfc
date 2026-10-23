@@ -20,58 +20,66 @@ jobs:
         include:
           - os: ubuntu-latest
             asset: Linux-x86_64
+            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
           - os: ubuntu-24.04-arm
             asset: Linux-arm64
-          - os: macos-13
-            asset: macOS-x86_64
+            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
           - os: macos-latest
             asset: macOS-arm64
+            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
+          - os: macos-latest
+            asset: macOS-x86_64
+            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror -arch x86_64"
           - os: windows-latest
             asset: Windows-x64
+            cxxflags: ""
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            ver="$GITHUB_REF_NAME"
+          else
+            ver="$(sed -n 's/.*kVersion = "\(.*\)";.*/\1/p' bfc.cpp | head -n1 | tr ' ' '-')"
+          fi
+          echo "VER=$ver" >> "$GITHUB_ENV"
+          echo "version: $ver"
+
+      - name: Verify kVersion matches the tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          src="$(sed -n 's/.*kVersion = "\(.*\)";.*/\1/p' bfc.cpp | head -n1)"
+          if [ "$src" != "$GITHUB_REF_NAME" ]; then
+            echo "error: kVersion is '$src' but the tag is '$GITHUB_REF_NAME'"
+            exit 1
+          fi
+
       - name: Build (Unix)
         if: runner.os != 'Windows'
-        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
+        run: make CXXFLAGS="${{ matrix.cxxflags }}"
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: g++ -std=c++17 -O2 -Wall -Wextra -Werror -static -o bfc.exe bfc.cpp
 
-      - name: Verify kVersion matches the tag
-        if: github.ref_type == 'tag'
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then got="$(./bfc.exe --version)"; else got="$(./bfc --version)"; fi
-          got="${got#bfc }"
-          if [ "$got" != "$GITHUB_REF_NAME" ]; then
-            echo "error: kVersion is '$got' but the tag is '$GITHUB_REF_NAME'"
-            exit 1
-          fi
-
       - name: Package (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            ver="$GITHUB_REF_NAME"
-          else
-            ver="$(./bfc --version | sed 's/^bfc //; s/ /-/g')"
-          fi
           mkdir -p dist
-          tar -czf "dist/bfc-$ver-${{ matrix.asset }}.tar.gz" bfc LICENSE LICENSE-EXCEPTION.md
+          tar -czf "dist/bfc-${VER}-${{ matrix.asset }}.tar.gz" bfc LICENSE LICENSE-EXCEPTION.md
           ls -l dist
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_TYPE -eq 'tag') { $ver = $env:GITHUB_REF_NAME }
-          else { $ver = ((& .\bfc.exe --version) -replace '^bfc ','') -replace ' ','-' }
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item bfc.exe "dist/bfc-$ver-Windows-x64.exe"
+          Copy-Item bfc.exe "dist/bfc-$env:VER-Windows-x64.exe"
           Get-ChildItem dist
 
       - uses: actions/upload-artifact@v4
