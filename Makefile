@@ -51,16 +51,23 @@ endif
 #  Sanitizer build (ASan + UBSan). Run `make test-san` on Linux or macOS.
 #  Not used for release binaries: 2-3x slower and roughly double the memory.
 # ---------------------------------------------------------------------------
-sanitize: $(SANBIN)
+sanitize:
+ifeq ($(OS),Windows_NT)
+	@echo "sanitize needs libasan/libubsan; use Linux or macOS (or CI)."
+	@exit 1
+else
+	@$(MAKE) $(SANBIN)
+endif
 
 $(SANBIN): bfc.cpp
 	$(CXX) $(SANFLAGS) $(SANLDFLAGS) -o $(SANBIN) bfc.cpp
 
-test-san: $(SANBIN)
+test-san:
 ifeq ($(OS),Windows_NT)
 	@echo "test-san needs libasan/libubsan; use Linux or macOS (or CI)."
 	@exit 1
 else
+	@$(MAKE) $(SANBIN)
 	BFC="$(CURDIR)/$(SANBIN)" sh tests/run_tests.sh
 endif
 
