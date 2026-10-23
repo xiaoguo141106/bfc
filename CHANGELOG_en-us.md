@@ -19,6 +19,10 @@ semantic versioning.
     select the binary under test
   - Test cases 28 -> 30: nest_deep_ok (1000 levels, must compile) and nest_limit
     (over the limit, must be rejected)
+  - The repository is now hosted on both GitHub and Codeberg, and every release
+    is published on both sites
+  - VERSIONING.md now requires official releases to ship prebuilt binaries
+    (Windows x64, Linux x86_64/arm64, macOS x86_64/arm64, plus SHA256SUMS)
 - Copyright notices unified to "Xiaoguo and bfc contributors" (bfc.cpp and
   LICENSE-EXCEPTION.md)
 

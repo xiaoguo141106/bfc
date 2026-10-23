@@ -14,6 +14,9 @@
     并断言 libasan/libubsan 确实被链接
   - Makefile 新增 sanitize / test-san 目标；测试运行器支持用 BFC= 指定被测二进制
   - 测试用例 28 → 30：新增 nest_deep_ok（1000 层嵌套应通过）与 nest_limit（超限应被拒绝）
+  - 仓库开始同时托管在 GitHub 与 Codeberg，两站同步发布（每次发版两站都建 Release）
+  - VERSIONING.md 明确：从第一个正式版起，Release 必须附带预编译产物
+    （Windows x64、Linux x86_64/arm64、macOS x86_64/arm64 以及 SHA256SUMS）
 - 版权信息统一为 "Xiaoguo and bfc contributors"（bfc.cpp 与 LICENSE-EXCEPTION.md）
 
 ## beta 0.0.4
