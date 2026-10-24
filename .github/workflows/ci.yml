@@ -56,10 +56,14 @@ jobs:
   macos-arm:
     name: macOS ARM64
     runs-on: macos-26
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
       - uses: actions/checkout@v4
       - name: Build and test
-        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
+      - name: Show deployment target
+        run: otool -l ./bfc | grep -A4 LC_BUILD_VERSION | head -n 8 test
       - name: Report version and targets
         run: |
           ./bfc --version
@@ -70,10 +74,14 @@ jobs:
     # macOS x86-64 is deprecated but still supported in this release.
     # It runs natively on the macOS 26 Tahoe Intel image (macos-26-intel).
     runs-on: macos-26-intel
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
     steps:
       - uses: actions/checkout@v4
       - name: Build (warnings are errors) and run tests
-        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
+      - name: Show deployment target
+        run: otool -l ./bfc | grep -A4 LC_BUILD_VERSION | head -n 8 test
       - name: Report version and targets
         run: |
           file ./bfc

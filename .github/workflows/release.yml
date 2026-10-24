@@ -27,12 +27,16 @@ jobs:
           - os: macos-26
             asset: macOS-arm64
             cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
+            deploy: "11.0"
           - os: macos-26-intel
             asset: macOS-x86_64
             cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
+            deploy: "10.15"
           - os: windows-latest
             asset: Windows-x64
             cxxflags: ""
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deploy }}
     steps:
       - uses: actions/checkout@v4
 
