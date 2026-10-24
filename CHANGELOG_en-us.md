@@ -5,6 +5,18 @@
 This project is in beta; version numbers are not guaranteed to follow strict
 semantic versioning.
 
+## RC-1
+
+- Versioning change: the pre-release stage now uses RC-n (starting at RC-1, no
+  zero padding) instead of Beta; SnapShot is reduced to 1-3; PR is removed
+- CI and release: macOS builds moved to the macOS 26 Tahoe images
+  (macos-26 / macos-26-intel) and are native again; deployment targets are
+  pinned (arm64 11.0, x86_64 10.15)
+- New release pipeline .github/workflows/release.yml: pushing an RC-* or 20* tag
+  builds the five platform assets plus SHA256SUMS and uploads them to the GitHub
+  Release
+- macOS x86-64 is marked deprecated (still supported and shipped in this release)
+
 ## beta 0.0.5
 
 - Safety and robustness

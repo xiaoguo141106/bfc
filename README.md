@@ -6,7 +6,7 @@
 
 [English](README_en-us.md) | **简体中文**
 
-版本 beta 0.0.5 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
+版本 RC-1 · [更新日志](CHANGELOG.md) · [版本号规划](VERSIONING.md)
 
 仓库同时托管在 [GitHub](https://github.com/xiaoguo141106/bfc) 与 [Codeberg](https://codeberg.org/xiaoguo/bfc)，两处同步发布与分发。
 

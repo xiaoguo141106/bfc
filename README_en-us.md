@@ -6,7 +6,7 @@
 
 **English** | [简体中文](README.md)
 
-Version beta 0.0.5 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
+Version RC-1 · [Changelog](CHANGELOG_en-us.md) · [Versioning](VERSIONING_en-us.md)
 
 Hosted on both [GitHub](https://github.com/xiaoguo141106/bfc) and [Codeberg](https://codeberg.org/xiaoguo/bfc); both sites are mirrored for every release.
 

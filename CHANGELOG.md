@@ -4,6 +4,16 @@
 
 本项目处于 beta 阶段，版本号不保证严格遵循语义化版本。
 
+## RC-1
+
+- 版本号体系调整：正式版之前的预发布阶段统一用 RC-n（从 RC-1 起，不补零），
+  取代 Beta；SnapShot 缩减为 1-3 个；取消 PR（预正式版）
+- CI 与发布：macOS 构建迁移到 macOS 26 Tahoe 镜像（macos-26 / macos-26-intel），
+  重新回到原生构建；固定部署目标（arm64 11.0、x86_64 10.15）
+- 新增发布产物流水线 .github/workflows/release.yml：推送 RC-* 或 20* 标签时，
+  自动构建五平台产物 + SHA256SUMS 并上传到 GitHub Release
+- macOS x86-64 标记为弃用（本版仍支持并发布）
+
 ## beta 0.0.5
 
 - 安全与健壮性

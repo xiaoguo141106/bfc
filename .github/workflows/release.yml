@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - '20*'
+      - 'RC-*'
   workflow_dispatch:
 
 permissions:

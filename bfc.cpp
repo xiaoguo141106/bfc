@@ -97,7 +97,7 @@ static const Target kTargets[] = {
 };
 static const int kTargetCount = static_cast<int>(sizeof(kTargets) / sizeof(kTargets[0]));
 
-static const char* const kVersion = "beta 0.0.5";
+static const char* const kVersion = "RC-1";
 
 // Target of the machine this compiler runs on.  Only x86-64 hosts are served;
 // on another architecture --target (plus a matching --cc) must be given.
