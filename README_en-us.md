@@ -113,10 +113,10 @@ the real loop, so semantics never change.
 | Windows 7 SP1 (x64) | partial | partial | needs the UCRT update, not CI verified |
 | Linux (x86-64, glibc) | yes | yes | verified locally (WSL) + CI |
 | Linux (x86-64, musl) | yes | yes | use --cc musl-g++ |
-| macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-13 runner) |
+| macOS 10.15+ (x86-64) | yes | yes | CI verified (macos-26-intel) · **deprecated, may be removed in a future release** |
 | FreeBSD / OpenBSD (x86-64) | partial | partial | SysV ELF path, not CI verified |
 | Linux (aarch64, Raspberry Pi 4/5, ...) | yes | yes | cross g++ + qemu verified locally, and CI |
-| macOS Apple Silicon (aarch64) | yes | yes | CI verified (native arm64 on macos-latest) |
+| macOS Apple Silicon (aarch64) | yes | yes | CI verified (native arm64 on macos-26) |
 | Windows XP | no | no | no UCRT |
 | Windows on ARM (aarch64) | no | no | not implemented yet |
 | DOS / z/OS / z/VSE / RTOS | no | no | out of scope |

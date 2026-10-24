@@ -55,7 +55,7 @@ jobs:
 
   macos-arm:
     name: macOS ARM64
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Build and test
@@ -67,34 +67,18 @@ jobs:
 
   macos:
     name: macOS x86-64
-    # macos-13 is retired; cross-compile x86-64 on the arm64 runner and run the
-    # tests under Rosetta when it is available.
-    runs-on: macos-latest
+    # macOS x86-64 is deprecated but still supported in this release.
+    # It runs natively on the macOS 26 Tahoe Intel image (macos-26-intel).
+    runs-on: macos-26-intel
     steps:
       - uses: actions/checkout@v4
-      - name: Try to enable Rosetta
-        id: rosetta
-        run: |
-          if arch -x86_64 true 2>/dev/null; then
-            echo "ok=1" >> "$GITHUB_OUTPUT"
-          elif sudo softwareupdate --install-rosetta --agree-to-license >/dev/null 2>&1 && arch -x86_64 true 2>/dev/null; then
-            echo "ok=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "ok=0" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Build (warnings are errors) for x86-64
-        run: make CXX="clang++" CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror -arch x86_64" LDFLAGS=""
-      - name: Run tests under Rosetta
-        if: steps.rosetta.outputs.ok == '1'
-        run: arch -x86_64 sh tests/run_tests.sh
-      - name: Warn when Rosetta is unavailable
-        if: steps.rosetta.outputs.ok != '1'
-        run: echo "::warning::Rosetta unavailable; macOS x86-64 was built but not run-tested"
+      - name: Build (warnings are errors) and run tests
+        run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror" test
       - name: Report version and targets
         run: |
           file ./bfc
-          ./bfc --version || true
-          ./bfc --targets || true
+          ./bfc --version
+          ./bfc --targets
 
   windows:
     name: Windows x64

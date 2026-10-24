@@ -101,10 +101,10 @@ reset 型单元只在“循环体至少执行过一次”时才改变，因此�
 | Windows 7 SP1 (x64) | 部分 | 部分 | 需 UCRT 更新，未 CI 验证 |
 | Linux (x86-64, glibc) | 支持 | 支持 | 本机 (WSL) 实测 + CI |
 | Linux (x86-64, musl) | 支持 | 支持 | 使用 --cc musl-g++ |
-| macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-13 运行器） |
+| macOS 10.15+ (x86-64) | 支持 | 支持 | CI 验证（macos-26-intel）· **已弃用，后续版本可能移除** |
 | FreeBSD / OpenBSD (x86-64) | 部分 | 部分 | 走 SysV ELF 路径，未 CI 验证 |
 | Linux (aarch64, 树莓派 4/5 等) | 支持 | 支持 | 交叉 g++ + qemu 实测 + CI |
-| macOS Apple Silicon (aarch64) | 支持 | 支持 | CI 验证（macos-latest 原生 arm64） |
+| macOS Apple Silicon (aarch64) | 支持 | 支持 | CI 验证（macos-26 原生 arm64） |
 | Windows XP | 不支持 | 不支持 | 没有 UCRT |
 | Windows on ARM (aarch64) | 不支持 | 不支持 | 尚未实现 |
 | DOS / z/OS / z/VSE / RTOS | 不支持 | 不支持 | 不在支持范围内 |

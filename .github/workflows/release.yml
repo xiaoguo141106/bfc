@@ -24,12 +24,12 @@ jobs:
           - os: ubuntu-24.04-arm
             asset: Linux-arm64
             cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
-          - os: macos-latest
+          - os: macos-26
             asset: macOS-arm64
             cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
-          - os: macos-latest
+          - os: macos-26-intel
             asset: macOS-x86_64
-            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror -arch x86_64"
+            cxxflags: "-std=c++17 -O2 -Wall -Wextra -Werror"
           - os: windows-latest
             asset: Windows-x64
             cxxflags: ""
