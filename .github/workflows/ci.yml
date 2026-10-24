@@ -63,7 +63,8 @@ jobs:
       - name: Build and test
         run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
       - name: Show deployment target
-        run: otool -l ./bfc | grep -A4 LC_BUILD_VERSION | head -n 8 test
+        run: |
+          otool -l ./bfc | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' || echo "(no build-version load command)" test
       - name: Report version and targets
         run: |
           ./bfc --version
@@ -81,7 +82,8 @@ jobs:
       - name: Build (warnings are errors) and run tests
         run: make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Werror"
       - name: Show deployment target
-        run: otool -l ./bfc | grep -A4 LC_BUILD_VERSION | head -n 8 test
+        run: |
+          otool -l ./bfc | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' || echo "(no build-version load command)" test
       - name: Report version and targets
         run: |
           file ./bfc
